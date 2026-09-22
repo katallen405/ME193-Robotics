@@ -27,7 +27,7 @@ POLL_DELAY_S = 0.1  # seconds between reads
 # Fill these in with whatever behavior you want.
 
 def DoRed():
-    print("red")
+    print("not red")
 
 
 
