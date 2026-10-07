@@ -18,3 +18,13 @@ subset of the class repo that's meant to be shared.
 - [virtualTesting/](virtualTesting/) — run `setup_test_env.py` to spin up a
   disposable virtual environment with `legoeducation` installed and drop
   into a `python3` REPL, no manual venv setup required.
+- [Debugging/](Debugging/) — a single-page MQTT console: subscribe to and
+  publish on any topic, on any broker, from the browser. Open `index.html`
+  directly, no install needed.
+- [QLearn/](QLearn/) — a browser-based Q-learning visualizer (PyScript +
+  Web Bluetooth): train a LEGO Education robot on Silly Walk, Line Follower
+  and Maze Solver tasks while watching the Q-table update live. Needs
+  Chrome or Edge; no install.
+  [Open it online](https://chrisbuerginrogers.github.io/ME193-Robotics/Public%20stuff/QLearn/).
+  Imported from
+  [ceeoinnovations/FETLab-Summer-2026](https://github.com/ceeoinnovations/FETLab-Summer-2026/tree/main/QLearn-NewActivities-PyScript).
