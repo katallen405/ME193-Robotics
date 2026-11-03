@@ -9,6 +9,7 @@ from state import get_id
 import network_model
 import templates
 import Device
+import teleop
 
 def render_dataset_header():
     container = get_id("dataset-header")
@@ -328,10 +329,30 @@ def clear_data():
     render_dataset_table()
     refresh_dataset_plot_points()
 
+def log_human_row(override: dict):
+    """DAgger: while the network is Running, a joystick push overrides it. At this
+    sensor reading the human's command is the right answer, so add it as a training row.
+    Call right after network_model.forward() so state.input_values is current."""
+    xs = {inp["id"]: state.input_values.get(inp["id"], 0.0) for inp in state.inputs}
+    ys = {out["id"]: override.get(out["id"], state.output_values.get(out["id"], 0.0)) for out in state.outputs}
+    network_model.add_data_point(xs, ys)
+    render_dataset_table()
+    refresh_dataset_plot_points()
+
 async def _generate_data_loop():
     while state.is_generating_data:
+        if state.teleop_armed and state.is_running:
+            # The Run loop logs the human's corrections itself (log_human_row); recording
+            # here too would add the network's own driving as if it were a demonstration.
+            await asyncio.sleep(0.1)
+            continue
         xs = {inp["id"]: _read_device_value(f"dev-input-{inp['id']}", f"chan-input-{inp['id']}") for inp in state.inputs}
-        ys = {out["id"]: _read_device_value(f"dev-output-{out['id']}", f"chan-output-{out['id']}") for out in state.outputs}
+        # With "Drive with controller" on, the label is what the human commanded.
+        # Otherwise (or for outputs the joysticks don't drive) it's the measured value, as before.
+        human = teleop.labels_for_collect()
+        ys = {out["id"]: human[out["id"]] if out["id"] in human
+              else _read_device_value(f"dev-output-{out['id']}", f"chan-output-{out['id']}")
+              for out in state.outputs}
         network_model.add_data_point(xs, ys)
         render_dataset_table()
         refresh_dataset_plot_points()

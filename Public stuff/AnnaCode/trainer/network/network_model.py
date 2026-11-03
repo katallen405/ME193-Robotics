@@ -122,13 +122,18 @@ def compute_forward() -> list[list[float]]:
 
     return layer_sources
 
-def forward():
+def forward(override: dict | None = None):
+    """One Run tick. `override` ({output id: command}) replaces the network's value
+    on those outputs -- used when a human takes over with the controller joysticks
+    (state.output_values still holds what the network wanted, for the plots)."""
     compute_forward()
     state.run_tick += 1
     for idx, out in enumerate(state.outputs):
         oid = out["id"]
         y_val = state.output_values.get(oid, 0.0)
         result = int(y_val)
+        if override and oid in override:
+            result = override[oid]
         dev_el  = get_id(f"dev-output-{oid}")
         chan_el = get_id(f"chan-output-{oid}")
         dev_name = dev_el.value if dev_el else ""

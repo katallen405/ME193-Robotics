@@ -47,6 +47,7 @@ import network_actions
 import activation_editor
 import ui_chrome
 import dataset_ui
+import teleop
 import arrows
 import Device
 import fit_plot
@@ -74,6 +75,7 @@ def play_network(evt=None):
 
 def stop_network(evt=None):
     state.is_running = False
+    teleop.reset_send_cache()
     get_id("stop-btn").setAttribute("disabled", "")
     get_id("play-btn").removeAttribute("disabled")
     document.body.classList.remove("running")
@@ -91,8 +93,13 @@ def stop_network(evt=None):
     arrows.redraw_arrows()
 
 async def loop_network():
+    teleop.reset_send_cache()
     while state.is_running:
-        network_model.forward()
+        # A stick push (with "Drive with controller" on) takes over from the network.
+        override = teleop.current_override()
+        network_model.forward(override)
+        if override and teleop.settings()["log"] and state.run_tick % 2 == 0:
+            dataset_ui.log_human_row(override)      # DAgger: keep the human's correction as data
         if state.debug_mode:
             arrows.redraw_arrows()
         await asyncio.sleep(0.05)
@@ -118,6 +125,9 @@ def check_browser_support():
     # hasattr() is the safe way to feature-detect it.
     if banner and not hasattr(window.navigator, "bluetooth"):
         banner.classList.remove("hidden")
+        Device.enable_virtual_controller()
+    elif "virtual" in str(window.location.search):
+        # trainer.html?virtual -- try the on-screen joysticks and motor without hardware
         Device.enable_virtual_controller()
 
 @when("click", "#close-ble-warning-btn")
@@ -201,6 +211,13 @@ def on_generate_data_click(evt=None):
 @when("click", "#clear-data-btn")
 def on_clear_click(evt=None):
     dataset_ui.clear_data()
+
+@when("change", "#teleop-enable")
+def on_teleop_toggle(evt):
+    if evt.target.checked:
+        teleop.arm()
+    else:
+        teleop.disarm()
 
 @when("input", "#crop-top-slider")
 def _on_crop_top_input(evt):

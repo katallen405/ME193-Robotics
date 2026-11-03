@@ -1678,3 +1678,14 @@ body {
     .col-add-layer { margin-right: 40px; }
 }
 .dataset-tip { margin: 0 0 8px; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+
+/* ── Controller demonstrations (dataset card) ─────────────────────────── */
+.teleop-bar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+    margin: 0 0 8px; padding: 6px 8px;
+    border: 1px dashed var(--border-mid); border-radius: 8px;
+    font-size: 12px;
+}
+.teleop-check, .teleop-field { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.teleop-field input[type="number"] { width: 52px; }
+.teleop-status { flex-basis: 100%; color: #64748b; min-height: 1em; }

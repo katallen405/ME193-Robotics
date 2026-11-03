@@ -35,6 +35,39 @@ install: Python runs in the page via [PyScript](https://pyscript.net).
 
 Picking a hub that is already connected shows an alert and does nothing.
 
+## Teaching by joystick (Trainer)
+
+Connect a LEGO **Controller** as well as the motor and color sensor, and the
+Trainer's **Training data** card gets a *Drive with controller* checkbox. This is
+behavior cloning with a human demonstrator, using the controller as the teacher:
+
+1. Set the Output nodes to the motor channels the network should drive (for a
+   two-wheeled car: `LeftSpeed` and `RightSpeed`) and the Input node to the
+   sensor (for example `Reflection`).
+2. Tick **Drive with controller**. The left stick drives the left wheel and the
+   right stick drives the right wheel (tank drive); with a single output, whichever
+   stick you push harder drives it. **Max speed** caps a full push, and **Reverse**
+   flips the direction if forward reads backward.
+3. Press **Collect** and drive the robot. Each row is the sensor reading and what
+   you *commanded*, not the motor's measured speed, so there is no lag in the labels.
+4. **Train 50 epochs**, then press **Run**: the network drives.
+5. While it runs, **push a stick to take over.** Your command replaces the network's
+   and is added to the data as a new row at that sensor reading (the DAgger idea:
+   correct the learner where it actually goes). Release and the network resumes.
+   Untick *Add my corrections while running* to take over without recording.
+   Retrain on the larger dataset and run again.
+
+Light and beep outputs are never driven by the sticks. With the checkbox off,
+Collect behaves as before (it records the measured value).
+
+No hardware? Open `trainer.html?virtual` to use the on-screen joysticks and motor.
+
+The joystick-to-motor mapping is `trainer/network/teleop_logic.py` and its tests
+run with plain Python from this folder: `python3 -m unittest discover tests -v`.
+The wiring is `trainer/misc_ui/teleop.py`. The right wheel is sign-flipped to match
+the example networks (opposite signs for the two wheels go straight); if your robot
+drives backward, tick **Reverse**.
+
 ## Troubleshooting
 
 - **It connects only some of the time.** The page retries automatically

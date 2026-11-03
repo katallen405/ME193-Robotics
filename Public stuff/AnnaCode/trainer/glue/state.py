@@ -64,6 +64,13 @@ is_generating_data = False   # True while the "Generate data" hardware-sampling 
 dataset_crop_start = 0
 dataset_crop_end: int | None = None
 
+# Controller teleoperation (see teleop.py) ----------------------------------
+# While armed, a LEGO Controller's joysticks drive the motor outputs. Collect
+# records the commanded values as the labels, and during Run a stick push
+# overrides the network and logs the human's command as a new training row.
+teleop_armed = False
+teleop_sent: dict = {}   # (device name, channel) -> (last value sent, ticks since sent)
+
 ACTIVATION_OPTIONS = [
     ("None",     ""),
     ("ReLU",     "relu"),
