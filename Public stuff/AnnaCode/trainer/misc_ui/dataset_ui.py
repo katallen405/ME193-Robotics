@@ -10,6 +10,7 @@ import network_model
 import templates
 import Device
 import teleop
+import power
 import fit_logic
 
 def render_dataset_header():
@@ -372,6 +373,7 @@ def _start_generate_data():
 
 def _stop_generate_data():
     state.is_generating_data = False
+    asyncio.ensure_future(power.reconcile())        # the sensor light can go off again
     btn = get_id("generate-data-btn")
     if btn:
         btn.textContent = "Collect"
@@ -396,6 +398,7 @@ def log_human_row(override: dict):
     refresh_dataset_plot_points()
 
 async def _generate_data_loop():
+    await power.ensure_ready()         # with Save power on, wake the sensor and wait for fresh readings
     while state.is_generating_data:
         lost = Device.dropped_devices_in_use()
         if lost:

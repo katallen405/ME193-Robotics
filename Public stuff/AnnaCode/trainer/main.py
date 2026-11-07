@@ -48,6 +48,7 @@ import activation_editor
 import ui_chrome
 import dataset_ui
 import teleop
+import power
 import virtual_devices
 import arrows
 import Device
@@ -77,6 +78,7 @@ def play_network(evt=None):
 def stop_network(evt=None):
     state.is_running = False
     teleop.reset_send_cache()
+    asyncio.ensure_future(power.reconcile())        # the sensor light can go off again
     get_id("stop-btn").setAttribute("disabled", "")
     get_id("play-btn").removeAttribute("disabled")
     document.body.classList.remove("running")
@@ -95,6 +97,7 @@ def stop_network(evt=None):
 
 async def loop_network():
     teleop.reset_send_cache()
+    await power.ensure_ready()         # with Save power on, wake the sensor and wait for fresh readings
     while state.is_running:
         lost = Device.dropped_devices_in_use()
         if lost:
@@ -235,6 +238,10 @@ def on_add_virtual_device(evt):
     get_id("add-virtual-btn").disabled = True
     virtual_devices.announce(f"Added {dev.name}" if dev else "Could not add that device")
 
+@when("change", "#save-power")
+def on_save_power_toggle(evt):
+    asyncio.ensure_future(power.reconcile())
+
 @when("change", "#teleop-enable")
 def on_teleop_toggle(evt):
     if evt.target.checked:
@@ -271,6 +278,7 @@ def boot():
     ui_chrome.setup_resize_observer()
     arrows.schedule_redraw(150)
     asyncio.ensure_future(fit_line_loop())
+    power.start()
 
 async def fit_line_loop():
     """Keep the Fit plot's line in step with the network (see dataset_ui.refresh_fit_line_if_changed)."""

@@ -139,6 +139,31 @@ with the numbers in `trainer/network/virtual_logic.py` (unit-tested).
 `trainer.html?virtual` still works and shows the older single combined controller
 and motor panel.
 
+## Saving the color sensor's battery (Trainer)
+
+The color sensor's light is a real battery drain (one sensor went 80% to 30% to dead in a
+single session), and it used to stay on for as long as the sensor was connected. The
+**Save power** box in the Devices card (ticked by default) keeps a connected Color Sensor
+**off** except while you are **Collect**ing or the network is **Run**ning, and only if an
+Input node reads that sensor. The sensor's chip says "light off" while it is off.
+
+- Pressing **Collect** or **Run** turns the light on and waits (up to 2 seconds) until the
+  sensor is really reading before the first row is recorded or the first motor command goes
+  out, so you never train or drive on a stale reading. **Stop** turns it off again.
+- **The cost:** with the light off, the sensor's live reading is blank. To watch the sensor
+  live (to see what it reads over the tape, say), untick **Save power**; the light comes
+  straight back on.
+- A sensor that Save power switched off is allowed to be quiet; the chip won't call it
+  "No signal". A sensor that should be on and goes silent is still flagged.
+
+How it works, and what is not verified: the page asks the sensor for a mode with the library's
+own `set_color_sensor_mode` (without waiting for the reply) and reads the mode the sensor says it is
+in from every color reading. This was checked against fake sensors only. With a real sensor,
+look in the browser console (Cmd+Opt+J) for `asked the sensor for mode 0 (light off)` and
+watch the light go dark. If a sensor never obeys, the page asks four times, says so once in
+the console, and leaves it alone; untick **Save power** to stop it asking. The logic is in
+`trainer/network/power_logic.py` (unit-tested) and `trainer/misc_ui/power.py`.
+
 ## Troubleshooting
 
 - **A device chip turns red and says "Disconnected" or "No signal" (Trainer).**

@@ -12,6 +12,7 @@ import time
 
 import state
 import link_logic as ll
+import power_logic as pw
 
 def _nowait_event_wait(self, timeout=None):
     return self._flag
@@ -275,6 +276,12 @@ class Element:
         self.link = None      # ll.LinkTracker once connected: is data still arriving, has the link dropped
         self._shown_link_state = None
         self._seen_info = None   # the last battery-report object the library stored
+        # Color Sensor only (see power_logic.py / misc_ui/power.py):
+        self.sensor_mode = None          # the mode the sensor reports (0 off, 1 color, 2 ambient); None if it doesn't
+        self.last_sensor_data = 0.0      # when the last color reading arrived
+        self.mode_requested = None       # the mode the page last asked for
+        self.mode_requested_at = 0.0
+        self.mode_retries = 0
         self.plots = []
         self.plot_vars = []
         self.in_list = []
@@ -473,6 +480,29 @@ class Element:
         print(f"{self.name}: Bluetooth link dropped")
         _refresh_link_chip(self)
 
+    @property
+    def is_color_sensor(self) -> bool:
+        return "Color Sensor" in (self.name or "")
+
+    async def set_sensor_mode(self, mode: int) -> bool:
+        """Ask a Color Sensor for a mode (pw.MODE_OFF / MODE_COLOR / MODE_AMBIENT) with the
+        library's own call, without waiting for the reply: the sensor reports the mode it is in
+        in every reading, and power.py watches for that. Returns True if the request was sent."""
+        if not self.is_color_sensor or self.hub is None:
+            return False
+        if self.link is not None and self.link.disconnected:
+            return False
+        self.mode_retries = self.mode_retries + 1 if self.mode_requested == mode else 0
+        self.mode_requested = mode
+        self.mode_requested_at = time.monotonic()
+        try:
+            self.hub.set_color_sensor_mode(mode, blocking=False)
+        except Exception as e:
+            print(f"{self.name}: could not set the sensor mode: {e}")
+            return False
+        print(f"{self.name}: asked the sensor for mode {mode} ({'light on' if mode == pw.MODE_COLOR else 'light off' if mode == pw.MODE_OFF else 'ambient'})")
+        return True
+
     async def disconnect(self):
         if self.myble is not None:
             self.myble.disconnectCallback = None   # our own disconnect is not a "loss"
@@ -539,12 +569,21 @@ class Element:
             self.battery = info.batteryLevel
             self._show_battery()
 
+    def link_state(self) -> str:
+        """link.state(), except that a Color Sensor which Save power switched off is allowed to be
+        quiet. Silence from a sensor that should be streaming is still reported."""
+        state_ = self.link.state(time.monotonic())
+        if (state_ == "no_signal" and self.is_color_sensor
+                and pw.effective_mode(self.mode_requested, self.sensor_mode) == pw.MODE_OFF):
+            return "ok"
+        return state_
+
     def battery_tooltip(self) -> str:
         link = self.link
         if link is None:
             return ll.battery_title(self.battery, None, 0, "ok")
         now = time.monotonic()
-        return ll.battery_title(self.battery, link.battery_age(now), link.battery_reports, link.state(now))
+        return ll.battery_title(self.battery, link.battery_age(now), link.battery_reports, self.link_state())
 
     def _show_battery(self):
         el = document.querySelector(f'[id="chip-{self.name}"] .device-battery')
@@ -593,6 +632,8 @@ class Element:
                 self.state["GyroZ"] = parsed_item.gyroscopeZ
 
             elif isinstance(parsed_item, le.ColorSensorNotification):
+                self.last_sensor_data = time.monotonic()
+                self.sensor_mode = getattr(parsed_item, "colorSensorMode", None)
                 self.state["Reflection"] = parsed_item.reflection
                 self.state["Color"] = parsed_item.color
                 self.state["Hue"] = parsed_item.hue
@@ -716,6 +757,7 @@ async def add_device_chip(dev: "Element"):
         f'<div class="device-indicator"></div>'
         f'<span class="device-name">{name}</span>'
         f'<span class="device-status"></span>'
+        f'<span class="device-note"></span>'
         f'<span class="device-battery" title="{dev.battery_tooltip()}">{_battery_html(dev.battery)}</span>'
         f'<span class="device-battery-age"></span>'
         f'<button class="btn-disconnect" title="Disconnect">'
@@ -756,7 +798,7 @@ def _refresh_link_chip(dev):
     link = getattr(dev, "link", None)
     if link is None:
         return
-    link_state = link.state(time.monotonic())
+    link_state = dev.link_state()
     chip = document.getElementById(f"chip-{dev.name}")
     if chip is None:
         return
