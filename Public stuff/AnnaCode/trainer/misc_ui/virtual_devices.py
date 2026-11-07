@@ -135,8 +135,7 @@ class VirtualController(VirtualBase):
         return (f'<div class="virtual-slider-pair">{col("left", "Left")}{col("right", "Right")}</div>'
                 '<p class="vdev-help"><b>Keyboard</b><br>'
                 'Arrow keys: drive (up/down = forward/back, left/right = turn)<br>'
-                'W / S: left stick &nbsp; I / K: right stick<br>'
-                '<span class="vdev-help-faint">Works when you are not typing in a box.</span></p>')
+                'W / S: left stick &nbsp; I / K: right stick</p>')
 
     def bind(self):
         for side in ("left", "right"):
