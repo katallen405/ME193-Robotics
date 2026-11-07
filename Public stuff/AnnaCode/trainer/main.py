@@ -270,5 +270,15 @@ def boot():
     ui_chrome.apply_activation_visibility()
     ui_chrome.setup_resize_observer()
     arrows.schedule_redraw(150)
+    asyncio.ensure_future(fit_line_loop())
+
+async def fit_line_loop():
+    """Keep the Fit plot's line in step with the network (see dataset_ui.refresh_fit_line_if_changed)."""
+    while True:
+        try:
+            dataset_ui.refresh_fit_line_if_changed()
+        except Exception as e:
+            print("Fit line update failed: " + str(e))
+        await asyncio.sleep(0.25)
 
 boot()

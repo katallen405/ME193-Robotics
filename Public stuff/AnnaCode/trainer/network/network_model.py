@@ -84,6 +84,17 @@ def propagate_layers(source_values: list[float], pre_store: dict, post_store: di
         source_values = next_source_values
     return source_values, layer_sources
 
+def predict_outputs(input_values: list[float]) -> dict:
+    """The network's answer for the given input values: {output id: value}.
+
+    Uses throw-away local stores, so it never disturbs the live values the Run loop and
+    the arrow display use. An output with no neuron behind it reads 0, as it does when running."""
+    pre, post = {}, {}
+    propagate_layers(list(input_values), pre, post)
+    last = state.layers[-1]["neurons"] if state.layers else []
+    return {out["id"]: (post.get(last[i]["id"], 0.0) if i < len(last) else 0.0)
+            for i, out in enumerate(state.outputs)}
+
 def compute_forward() -> list[list[float]]:
     """Read the current input device readings and forward-propagate them
     through every layer, populating input_values / neuron_pre_values /

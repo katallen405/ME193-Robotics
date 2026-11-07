@@ -1755,3 +1755,6 @@ body {
 
 .device-battery-age { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
 .device-row.lost .device-battery-age { opacity: 0.45; }
+
+/* ── Fit plot note (shown when the network has more than one input) ───── */
+.fit-note { margin: 0 0 6px; font-size: 11px; line-height: 1.4; color: var(--text-muted); }

@@ -10,6 +10,7 @@ import network_model
 import templates
 import Device
 import teleop
+import fit_logic
 
 def render_dataset_header():
     container = get_id("dataset-header")
@@ -234,6 +235,61 @@ def refresh_dataset_plot_points():
         oid = out["id"]
         ys = [p["ys"].get(oid, 0.0) for p in visible]
         fit_plot_obj.update_data_points(oid, xs, ys)
+
+# ── The fit line ─────────────────────────────────────────────────────────────
+# The network's own answer swept across the first input (other inputs held at their
+# averages over the examples). It has to follow the weights, the structure and the
+# examples, which change from many places (training, typing a weight, adding a neuron,
+# collecting...), so instead of hooking each one, a light 4 Hz loop in main.py asks
+# refresh_fit_line_if_changed() and only redraws when the fingerprint below changed.
+
+FIT_POINTS = 60
+_fit_signature = None
+
+def _visible_points():
+    start, end = _crop_bounds()
+    return state.training_data[start:end + 1] if end >= start else []
+
+def _fit_fingerprint():
+    visible = _visible_points()
+    layers = tuple(
+        (layer.get("act_fn"), repr(layer.get("custom_activation")),
+         tuple((tuple(n["weights"]), n["bias"]) for n in layer["neurons"]))
+        for layer in state.layers)
+    first = state.inputs[0]["id"] if state.inputs else None
+    xs = tuple(p["xs"].get(first, 0.0) for p in visible)
+    others = tuple(tuple(p["xs"].get(i["id"], 0.0) for p in visible) for i in state.inputs[1:])
+    return (layers, tuple(i["id"] for i in state.inputs), tuple(o["id"] for o in state.outputs),
+            len(visible), (min(xs), max(xs)) if xs else None, tuple(round(sum(c), 6) for c in others))
+
+def _draw_fit_line():
+    fit_plot_obj = state.all_plots.get("plot-fit")
+    if not fit_plot_obj or not state.inputs or not state.outputs or not state.layers:
+        return
+    visible = _visible_points()
+    first = state.inputs[0]["id"]
+    lo, hi = fit_logic.x_range([p["xs"].get(first, 0.0) for p in visible])
+    xs = fit_logic.grid(lo, hi, FIT_POINTS)
+    held = fit_logic.means([[p["xs"].get(i["id"], 0.0) for i in state.inputs[1:]] for p in visible])
+    held = held or [0.0] * (len(state.inputs) - 1)          # no examples yet: hold the others at 0
+    ys = {out["id"]: [] for out in state.outputs}
+    for x in xs:
+        for oid, value in network_model.predict_outputs([x] + held).items():
+            ys[oid].append(value)
+    for oid, values in ys.items():
+        fit_plot_obj.update_fit(oid, xs, values)
+    note = get_id("fit-note")
+    if note:
+        note.classList.toggle("hidden", len(state.inputs) < 2)
+
+def refresh_fit_line_if_changed():
+    """Redraw the fit line if the network or the examples changed since the last call."""
+    global _fit_signature
+    signature = _fit_fingerprint()
+    if signature == _fit_signature:
+        return
+    _fit_signature = signature         # remembered first, so a failure is reported once, not every tick
+    _draw_fit_line()
 
 def render_add_point_row():
     container = get_id("dataset-add-row")

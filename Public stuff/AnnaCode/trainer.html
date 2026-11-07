@@ -213,7 +213,7 @@
                     <button class="btn-generate-data" id="generate-data-btn" title="Sample the connected input/output hardware every 0.1s and add each reading as a new row">Collect</button>
                     <button class="btn-generate-data" id="clear-data-btn" title="Clear dataset">Clear</button>
                 </div>
-                <p class="dataset-tip">Give it examples: for line following, collect a few rows going straight on the tape edge, turning left on the tape and turning right on the table top.</p>
+                <p class="dataset-tip">With the neural network <em>not</em> running, give it examples by clicking the Collect button, selecting "Drive with controller", and driving with the controller.</p>
                 <!-- ── Controller demonstrations (see trainer/misc_ui/teleop.py) ── -->
                 <div class="teleop-bar" id="teleop-bar">
                     <label class="teleop-check" title="The controller's joysticks drive the motors. While this is on, Collect records what you commanded as the answer for each sensor reading.">
@@ -222,7 +222,7 @@
                     <label class="teleop-field" title="Motor speed when a stick is pushed all the way">Max speed
                         <input type="number" id="teleop-max" value="50" min="5" max="100" step="5" /> %
                     </label>
-                    <label class="teleop-check" title="Flip the direction if pushing the sticks forward drives the robot backward">
+                    <label class="teleop-check" title="Select this if you are using the virtual controller and the up arrow key drives your robot backwards">
                         <input type="checkbox" id="teleop-reverse" /> Reverse
                     </label>
                     <label class="teleop-check" title="While the network is running, push a stick to take over. Your correction is added to the training data.">
@@ -277,6 +277,7 @@
                             <span class="connect-title">Fit</span>
                             <button class="btn-clear-plot" id="clear-fit-btn" title="Clear the live output trace">Clear</button>
                         </div>
+                        <p class="fit-note hidden" id="fit-note">The line shows each output against the first input (x). Your other inputs are held at their averages.</p>
                         <div class="training-plot-canvas" id="plot-fit"></div>
                     </div>
                     <div class="training-plot-block">

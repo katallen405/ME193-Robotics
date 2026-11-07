@@ -48,8 +48,9 @@ behavior cloning with a human demonstrator, using the controller as the teacher:
    right stick drives the right wheel (tank drive); with a single output, whichever
    stick you push harder drives it. **Max speed** caps a full push, and **Reverse**
    flips the direction if forward reads backward.
-3. Press **Collect** and drive the robot. Each row is the sensor reading and what
-   you *commanded*, not the motor's measured speed, so there is no lag in the labels.
+3. With the neural network *not* running, press **Collect** and drive the robot. Each
+   row is the sensor reading and what you *commanded*, not the motor's measured speed,
+   so there is no lag in the labels.
 4. **Train 50 epochs**, then press **Run**: the network drives.
 5. While it runs, **push a stick to take over.** Your command replaces the network's
    and is added to the data as a new row at that sensor reading (the DAgger idea:
@@ -59,6 +60,16 @@ behavior cloning with a human demonstrator, using the controller as the teacher:
 
 Light and beep outputs are never driven by the sticks. With the checkbox off,
 Collect behaves as before (it records the measured value).
+
+### Reading the Fit plot
+
+The dots are your examples (one color per output). The dark **line** is the network's own
+answer for that output, swept across the first input, so training is the line moving onto
+the dots. It redraws as you train, as you type a weight, and as you add examples, neurons
+or outputs, and it is drawn from the start (the untrained network). If the network has more
+than one input, the line varies only the first input and holds the others at their averages
+over your examples; a note under the plot says so. The faint dots that appear while the
+network runs are what it actually produced ("live"), which should land on the line.
 
 No controller? Add a virtual one (next section). If both a real and a virtual
 controller are connected, the first one in the Devices list is used (the status line
