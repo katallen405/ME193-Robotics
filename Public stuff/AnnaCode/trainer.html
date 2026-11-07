@@ -59,14 +59,17 @@
         <div class="card connect-card">
             <div class="connect-header devices-header">
                 <span class="connect-title">Devices</span>
-                <select class="add-virtual-select" id="add-virtual-select"
-                        title="No kit with you? Add a pretend device and use it like the real one.">
-                    <option value="">+ Add virtual device…</option>
-                    <option value="controller">Controller (sliders and keyboard)</option>
-                    <option value="double_motor">Double Motor</option>
-                    <option value="single_motor">Single Motor</option>
-                    <option value="color_sensor">Color Sensor</option>
-                </select>
+                <div class="add-virtual" title="No kit with you? Add a pretend device and use it like the real one.">
+                    <select class="add-virtual-select" id="add-virtual-select" aria-label="Virtual device to add">
+                        <option value="">Choose a virtual device…</option>
+                        <option value="controller">Controller (sliders and keyboard)</option>
+                        <option value="double_motor">Double Motor</option>
+                        <option value="single_motor">Single Motor</option>
+                        <option value="color_sensor">Color Sensor</option>
+                    </select>
+                    <button class="btn-add-virtual" id="add-virtual-btn" disabled>Add</button>
+                    <span class="add-virtual-status" id="add-virtual-status" role="status" aria-live="polite"></span>
+                </div>
             </div>
             <div class="device-list" id="device-list">
                 <button class="btn-add-device" id="add-device-btn">

@@ -214,11 +214,20 @@ def on_clear_click(evt=None):
     dataset_ui.clear_data()
 
 @when("change", "#add-virtual-select")
+def on_virtual_choice(evt):
+    # Choosing only selects; the Add button confirms.
+    get_id("add-virtual-btn").disabled = not evt.target.value
+
+@when("click", "#add-virtual-btn")
 def on_add_virtual_device(evt):
-    kind = evt.target.value
-    if kind:
-        virtual_devices.add(kind)
-    evt.target.value = ""          # back to the "+ Add virtual device..." prompt
+    select = get_id("add-virtual-select")
+    kind = select.value
+    if not kind:
+        return
+    dev = virtual_devices.add(kind)
+    select.value = ""                                   # back to the prompt, ready for another
+    get_id("add-virtual-btn").disabled = True
+    virtual_devices.announce(f"Added {dev.name}" if dev else "Could not add that device")
 
 @when("change", "#teleop-enable")
 def on_teleop_toggle(evt):

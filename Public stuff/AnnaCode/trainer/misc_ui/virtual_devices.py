@@ -328,6 +328,24 @@ def add(kind: str):
     sync.refresh_device_dropdowns()
     return dev
 
+_status_generation = 0
+
+def announce(text: str, seconds: float = 3.0):
+    """Show a short confirmation next to the Add button, then clear it."""
+    global _status_generation
+    _status_generation += 1
+    mine = _status_generation
+    el = get_id("add-virtual-status")
+    if el:
+        el.textContent = text
+
+    async def clear():
+        await asyncio.sleep(seconds)
+        if mine == _status_generation and el:      # a newer message keeps its own timer
+            el.textContent = ""
+
+    asyncio.ensure_future(clear())
+
 def remove(dev):
     import sync
     try:

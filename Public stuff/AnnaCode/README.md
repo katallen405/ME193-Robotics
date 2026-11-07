@@ -72,9 +72,11 @@ drives backward, tick **Reverse**.
 
 ## No kit with you? Virtual devices (Trainer)
 
-**+ Add virtual device…** in the Devices card adds a pretend device that behaves like
-the real one. Use as many as you like, mixed with real hardware or on their own (no
-Bluetooth needed, so it also works in Safari and Firefox).
+In the Devices card, pick a device from **Choose a virtual device…** and press **Add**.
+A card for it appears (with a short "Added ..." confirmation next to the button) and it
+shows up in every Input and Output dropdown. It behaves like the real one. Use as many
+as you like, mixed with real hardware or on their own (no Bluetooth needed, so it also
+works in Safari and Firefox). The **×** on a card removes it.
 
 | Virtual device | Channels it shows | Notes |
 |---|---|---|
@@ -119,12 +121,17 @@ Everything is plain files; there is no build step. To run a copy locally:
 
 ```
 cd "Public stuff/AnnaCode"
-python3 -m http.server
+python3 serve.py
 ```
 
 then open `http://localhost:8000/` (builder) or
 `http://localhost:8000/trainer.html` (trainer) in Chrome. `localhost` is
-allowed to use Bluetooth.
+allowed to use Bluetooth. `python3 serve.py 8001` picks another port.
+
+`serve.py` is `python3 -m http.server` with browser caching switched off. Prefer it when
+you edit files or switch branches: the plain server lets Chrome keep old copies, and
+PyScript fetches its `.py` files itself, so the page can keep running stale code (for
+example a new button that does nothing) even after a hard reload.
 
 ```
 index.html, styles.css, main.py   Builder page and its entry point
