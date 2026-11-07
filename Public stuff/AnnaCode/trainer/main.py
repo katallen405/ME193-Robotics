@@ -48,6 +48,7 @@ import activation_editor
 import ui_chrome
 import dataset_ui
 import teleop
+import virtual_devices
 import arrows
 import Device
 import fit_plot
@@ -211,6 +212,13 @@ def on_generate_data_click(evt=None):
 @when("click", "#clear-data-btn")
 def on_clear_click(evt=None):
     dataset_ui.clear_data()
+
+@when("change", "#add-virtual-select")
+def on_add_virtual_device(evt):
+    kind = evt.target.value
+    if kind:
+        virtual_devices.add(kind)
+    evt.target.value = ""          # back to the "+ Add virtual device..." prompt
 
 @when("change", "#teleop-enable")
 def on_teleop_toggle(evt):

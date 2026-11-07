@@ -60,13 +60,45 @@ behavior cloning with a human demonstrator, using the controller as the teacher:
 Light and beep outputs are never driven by the sticks. With the checkbox off,
 Collect behaves as before (it records the measured value).
 
-No hardware? Open `trainer.html?virtual` to use the on-screen joysticks and motor.
+No controller? Add a virtual one (next section). If both a real and a virtual
+controller are connected, the first one in the Devices list is used (the status line
+under the checkboxes names it).
 
 The joystick-to-motor mapping is `trainer/network/teleop_logic.py` and its tests
 run with plain Python from this folder: `python3 -m unittest discover tests -v`.
 The wiring is `trainer/misc_ui/teleop.py`. The right wheel is sign-flipped to match
 the example networks (opposite signs for the two wheels go straight); if your robot
 drives backward, tick **Reverse**.
+
+## No kit with you? Virtual devices (Trainer)
+
+**+ Add virtual device…** in the Devices card adds a pretend device that behaves like
+the real one. Use as many as you like, mixed with real hardware or on their own (no
+Bluetooth needed, so it also works in Safari and Firefox).
+
+| Virtual device | Channels it shows | Notes |
+|---|---|---|
+| Controller | `LeftPercent`, `RightPercent` | Two sliders, plus the keyboard (below) |
+| Double Motor | `LeftSpeed`, `RightSpeed`, `BothSpeed`, `LeftPosition`, `RightPosition`, `LeftAngle`, `RightAngle`, `LeftPower`, `RightPower` | Wheels are mirrored like the real chassis. Outputs: `LeftSpeed`, `RightSpeed`, `BothSpeed` |
+| Single Motor | `Speed`, `Position`, `Angle`, `Power` | Output: `Speed` |
+| Color Sensor | `Reflection` | Slide it to change what the sensor "sees" (0 dark, 100 bright) |
+
+**Keyboard for the virtual controller** (works whenever you are not typing in a box;
+Cmd/Ctrl shortcuts are left alone):
+
+- **Arrow keys** drive like a car: up/down = both sticks forward/back, left/right = turn.
+- **W / S** = left stick up/down, **I / K** = right stick up/down.
+- The sticks ease out while a key is held and spring back when you let go.
+
+With a virtual controller you can do the whole loop at home: add a controller, a color
+sensor and a motor, tick **Drive with controller**, **Collect** while you slide the
+sensor and drive with the keys, train, and **Run**.
+
+Virtual devices only have the channels listed above (a real device reports more, such
+as the IMU and color channels). Their logic is `trainer/misc_ui/virtual_devices.py`,
+with the numbers in `trainer/network/virtual_logic.py` (unit-tested).
+`trainer.html?virtual` still works and shows the older single combined controller
+and motor panel.
 
 ## Troubleshooting
 

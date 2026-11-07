@@ -57,8 +57,16 @@
              diagram so it stays visible even with both lesson sections
              above collapsed. ── -->
         <div class="card connect-card">
-            <div class="connect-header">
+            <div class="connect-header devices-header">
                 <span class="connect-title">Devices</span>
+                <select class="add-virtual-select" id="add-virtual-select"
+                        title="No kit with you? Add a pretend device and use it like the real one.">
+                    <option value="">+ Add virtual device…</option>
+                    <option value="controller">Controller (sliders and keyboard)</option>
+                    <option value="double_motor">Double Motor</option>
+                    <option value="single_motor">Single Motor</option>
+                    <option value="color_sensor">Color Sensor</option>
+                </select>
             </div>
             <div class="device-list" id="device-list">
                 <button class="btn-add-device" id="add-device-btn">
@@ -69,6 +77,9 @@
                     Connect device
                 </button>
             </div>
+
+            <!-- ── Virtual devices added with "+ Add virtual device" (trainer/misc_ui/virtual_devices.py) ── -->
+            <div class="virtual-devices" id="virtual-devices"></div>
 
             <!-- ── Virtual controller: stands in for real hardware on
                  browsers without Web Bluetooth (see ble-warning-banner) ── -->
