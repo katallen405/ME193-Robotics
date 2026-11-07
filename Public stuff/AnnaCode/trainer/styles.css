@@ -1745,3 +1745,10 @@ body {
 .btn-add-virtual:active:not(:disabled) { transform: scale(0.97); }
 .btn-add-virtual:disabled { opacity: 0.35; cursor: not-allowed; }
 .add-virtual-status { font-size: 12px; font-weight: 600; color: var(--green); min-height: 1em; }
+
+/* ── Lost Bluetooth connection (Device chips) ─────────────────────────── */
+.device-status { display: none; font-size: 11px; font-weight: 700; color: var(--red); }
+.device-row.lost { border-color: var(--red); background: #fdf2f2; max-width: none; }
+.device-row.lost .device-status { display: inline; }
+.device-row.lost .device-indicator { background: var(--red); animation: none; }
+.device-row.lost .device-battery { opacity: 0.45; }

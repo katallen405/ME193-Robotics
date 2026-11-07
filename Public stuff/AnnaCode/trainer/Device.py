@@ -8,8 +8,10 @@ from pyscript import document, window
 from pyscript.js_modules import ble
 from pyscript.ffi import create_proxy
 import json
+import time
 
 import state
+import link_logic as ll
 
 def _nowait_event_wait(self, timeout=None):
     return self._flag
@@ -270,6 +272,8 @@ class Element:
         self._logged_items = False
         self._info_default = None
         self.battery = None   # percent, from the hub's info notification
+        self.link = None      # ll.LinkTracker once connected: is data still arriving, has the link dropped
+        self._shown_link_state = None
         self.plots = []
         self.plot_vars = []
         self.in_list = []
@@ -389,7 +393,13 @@ class Element:
                 return
 
             print("BLE GATT connected, setting up hub...")
-            
+
+            # Watch the link from here on. (Not earlier: ble.js deliberately drops and
+            # retries the GATT link while connecting, which must not count as a loss.)
+            self.link = ll.LinkTracker(time.monotonic())
+            self._disconnect_proxy = create_proxy(self._on_ble_disconnect)
+            self.myble.disconnectCallback = self._disconnect_proxy
+
             self.hub.device = self.hub  # <-- THIS is the fix
 
             registry = getattr(bd.my_worker, '_js_ble_registry', None)
@@ -453,13 +463,25 @@ class Element:
             kind = next(k for k in _DEVICE_MAP if k in self.name)
             self.name = _dedupe_name(f"{emoji}    {kind}", existing_names or [])
 
+    def _on_ble_disconnect(self, evt=None):
+        """The browser says the Bluetooth link dropped (laptop slept, the device ran out of
+        power, or it went out of range)."""
+        if self.link is None:
+            return
+        self.link.mark_disconnected()
+        print(f"{self.name}: Bluetooth link dropped")
+        _refresh_link_chip(self)
+
     async def disconnect(self):
+        if self.myble is not None:
+            self.myble.disconnectCallback = None   # our own disconnect is not a "loss"
         if self.hub and self.hub.connected:
             self.hub.disconnect()
             self.hub.connected = False
         await asyncio.sleep(0)
         self.hub = None
-        self.myble = None   
+        self.myble = None
+        self.link = None
 
     def build_state(self):
         if "Double Motor" in self.name:
@@ -510,13 +532,22 @@ class Element:
             self.battery = info.batteryLevel
             self._show_battery()
 
+    def battery_tooltip(self) -> str:
+        link = self.link
+        if link is None:
+            return ll.battery_title(self.battery, None, 0, "ok")
+        now = time.monotonic()
+        return ll.battery_title(self.battery, link.battery_age(now), link.battery_reports, link.state(now))
+
     def _show_battery(self):
         el = document.querySelector(f'[id="chip-{self.name}"] .device-battery')
         if el:
             el.innerHTML = _battery_html(self.battery)
-            el.title = f"Battery {self.battery}%"
+            el.title = self.battery_tooltip()
 
-    def notif_callback(self, data):                    
+    def notif_callback(self, data):
+        if self.link is not None:
+            self.link.data(time.monotonic())
         parsed_items = le.device_notification_parser(data)
         self.sync_battery()
         if not self._logged_items:
@@ -526,6 +557,8 @@ class Element:
 
             if isinstance(parsed_item, le.InfoDeviceNotification):
                 print(f"{self.name} battery reading: {parsed_item.batteryLevel}")
+                if self.link is not None:
+                    self.link.battery_report(time.monotonic())
                 if parsed_item.batteryLevel != self.battery:
                     self.battery = parsed_item.batteryLevel
                     self._show_battery()
@@ -677,7 +710,8 @@ async def add_device_chip(dev: "Element"):
     chip.innerHTML = (
         f'<div class="device-indicator"></div>'
         f'<span class="device-name">{name}</span>'
-        f'<span class="device-battery" title="{"Battery %d%%" % dev.battery if dev.battery is not None else "Waiting for battery level"}">{_battery_html(dev.battery)}</span>'
+        f'<span class="device-status"></span>'
+        f'<span class="device-battery" title="{dev.battery_tooltip()}">{_battery_html(dev.battery)}</span>'
         f'<button class="btn-disconnect" title="Disconnect">'
         f'    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"'
         f'         stroke="currentColor" stroke-width="2.5">'
@@ -703,6 +737,72 @@ async def add_device_chip(dev: "Element"):
     dl.appendChild(chip)
     import sync
     sync.refresh_device_dropdowns()
+    ensure_link_watchdog()
+
+# ── Connection watchdog ──────────────────────────────────────────────────────
+# Once a second, turn each hub's LinkTracker into the chip you see: a red "Disconnected"
+# or "No signal" label when the link is gone, back to normal if data returns.
+
+_watchdog_running = False
+
+def _refresh_link_chip(dev):
+    link = getattr(dev, "link", None)
+    if link is None:
+        return
+    link_state = link.state(time.monotonic())
+    chip = document.getElementById(f"chip-{dev.name}")
+    if chip is None:
+        return
+    if link_state != dev._shown_link_state:
+        previous, dev._shown_link_state = dev._shown_link_state, link_state
+        chip.classList.toggle("lost", link_state != "ok")
+        label = chip.querySelector(".device-status")
+        if label:
+            label.textContent = ll.status_text(link_state)
+        if link_state != "ok":
+            print(f"{dev.name}: {ll.status_text(link_state)}")
+        elif previous is not None:
+            print(f"{dev.name}: signal is back")
+    battery = chip.querySelector(".device-battery")
+    if battery:
+        battery.title = dev.battery_tooltip()    # keeps "last reported N min ago" current
+
+async def _link_watchdog():
+    global _watchdog_running
+    try:
+        while any(isinstance(d, Element) and d.link is not None for d in state.devices):
+            for dev in list(state.devices):
+                if isinstance(dev, Element) and dev.link is not None:
+                    try:
+                        _refresh_link_chip(dev)
+                    except Exception as e:
+                        print("Link check failed: " + str(e))
+            await asyncio.sleep(1.0)
+    finally:
+        _watchdog_running = False
+
+def ensure_link_watchdog():
+    global _watchdog_running
+    if not _watchdog_running:
+        _watchdog_running = True
+        asyncio.ensure_future(_link_watchdog())
+
+def link_dropped(device) -> bool:
+    """True once the browser has said this device's Bluetooth link dropped. Only the
+    definitive signal is used to change behavior; "No signal" is display only."""
+    link = getattr(device, "link", None)
+    return bool(link is not None and link.disconnected)
+
+def dropped_devices_in_use() -> list:
+    """Names of devices whose link dropped that an Input or Output node is using."""
+    names = []
+    for prefix, items in (("input", state.inputs), ("output", state.outputs)):
+        for item in items:
+            el = document.getElementById(f"dev-{prefix}-{item['id']}")
+            dev = device_by_name(el.value) if el else None
+            if dev is not None and link_dropped(dev) and dev.name not in names:
+                names.append(dev.name)
+    return names
 
 _connecting = False
 
@@ -894,6 +994,8 @@ def run_output(variable, dev_name, value):
     device = device_by_name(dev_name)
     if not device:
         return
+    if link_dropped(device):
+        return          # the link is gone: writes would just pile up in the request queue
     if "Speed" in variable:
         if value > 100:
             value = 100

@@ -96,6 +96,12 @@ def stop_network(evt=None):
 async def loop_network():
     teleop.reset_send_cache()
     while state.is_running:
+        lost = Device.dropped_devices_in_use()
+        if lost:
+            # A frozen sensor reading would keep the network driving on stale data.
+            print("Stopping: lost Bluetooth connection to " + ", ".join(lost))
+            stop_network()
+            break
         # A stick push (with "Drive with controller" on) takes over from the network.
         override = teleop.current_override()
         network_model.forward(override)

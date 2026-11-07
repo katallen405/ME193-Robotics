@@ -341,6 +341,12 @@ def log_human_row(override: dict):
 
 async def _generate_data_loop():
     while state.is_generating_data:
+        lost = Device.dropped_devices_in_use()
+        if lost:
+            # A dead sensor just repeats its last reading; recording it would pollute the data.
+            print("Collect stopped: lost Bluetooth connection to " + ", ".join(lost))
+            _stop_generate_data()
+            break
         if state.teleop_armed and state.is_running:
             # The Run loop logs the human's corrections itself (log_human_row); recording
             # here too would add the network's own driving as if it were a demonstration.

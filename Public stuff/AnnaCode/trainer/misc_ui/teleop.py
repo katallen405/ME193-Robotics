@@ -62,11 +62,18 @@ def _output_channels() -> dict:
 
 # ── Commands ─────────────────────────────────────────────────────────────────
 
+def _sticks_of(ctrl):
+    """A controller whose Bluetooth link dropped keeps its last stick values forever, which
+    would leave the motors driving. Treat a dropped controller as centred."""
+    if Device.link_dropped(ctrl):
+        return 0.0, 0.0
+    return tl.stick_values(ctrl.state)
+
 def _sticks_and_settings():
     ctrl = find_controller()
     if ctrl is None:
         return None
-    left, right = tl.stick_values(ctrl.state)
+    left, right = _sticks_of(ctrl)
     return ctrl, left, right, settings()
 
 def current_commands() -> dict:
@@ -122,6 +129,8 @@ def _status_text() -> str:
     ctrl = find_controller()
     if ctrl is None:
         return "No controller found. Connect one (or open this page with ?virtual to use the on-screen sticks)."
+    if Device.link_dropped(ctrl):
+        return f"{ctrl.name}: connection lost, so the sticks are ignored"
     left, right = tl.stick_values(ctrl.state)
     text = f"{ctrl.name}: left {left:.0f}, right {right:.0f}"
     if state.is_running and current_override():

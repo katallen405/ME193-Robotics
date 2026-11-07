@@ -104,6 +104,20 @@ and motor panel.
 
 ## Troubleshooting
 
+- **A device chip turns red and says "Disconnected" or "No signal" (Trainer).**
+  *Disconnected* means the browser reported that the Bluetooth link dropped, for example
+  the laptop went to sleep, the device ran out of power, or it moved out of range. While
+  a device is disconnected the page stops sending it commands, ignores a disconnected
+  controller's sticks (they would otherwise stay stuck at their last value), and stops
+  **Run** or **Collect** if an input or output in use has dropped. *No signal* means the
+  page has heard nothing for several seconds but the browser has not reported a drop. It is
+  only a warning and clears by itself if data returns. To recover from a disconnect, click
+  the chip's **x** and press **Connect device** again.
+- **Battery percentage.** The hub only reports its battery level when it chooses to, and
+  the page can only show what it is sent. Hover over a chip's battery to see when the last
+  report arrived and how many reports there have been. The browser console (Cmd+Opt+J)
+  logs a `battery reading` line for every report. A battery number on a red chip may be
+  out of date.
 - **It connects only some of the time.** The page retries automatically
   (up to five attempts). Open the browser console (Cmd+Opt+J) to see
   `BLE connect attempt N/5 failed` lines.
