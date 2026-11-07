@@ -274,6 +274,7 @@ class Element:
         self.battery = None   # percent, from the hub's info notification
         self.link = None      # ll.LinkTracker once connected: is data still arriving, has the link dropped
         self._shown_link_state = None
+        self._seen_info = None   # the last battery-report object the library stored
         self.plots = []
         self.plot_vars = []
         self.in_list = []
@@ -527,6 +528,12 @@ class Element:
         info = getattr(self.hub, "info_device", None)
         if info is None or info is self._info_default:
             return
+        if info is not self._seen_info:
+            # The library stores a new object for every battery report the device sends, so
+            # a new object means a report arrived (this includes the one sent at connect).
+            self._seen_info = info
+            if self.link is not None:
+                self.link.battery_report(time.monotonic())
         if info.batteryLevel != self.battery:
             print(f"{self.name} battery reading: {info.batteryLevel}")
             self.battery = info.batteryLevel
@@ -557,8 +564,6 @@ class Element:
 
             if isinstance(parsed_item, le.InfoDeviceNotification):
                 print(f"{self.name} battery reading: {parsed_item.batteryLevel}")
-                if self.link is not None:
-                    self.link.battery_report(time.monotonic())
                 if parsed_item.batteryLevel != self.battery:
                     self.battery = parsed_item.batteryLevel
                     self._show_battery()
@@ -712,6 +717,7 @@ async def add_device_chip(dev: "Element"):
         f'<span class="device-name">{name}</span>'
         f'<span class="device-status"></span>'
         f'<span class="device-battery" title="{dev.battery_tooltip()}">{_battery_html(dev.battery)}</span>'
+        f'<span class="device-battery-age"></span>'
         f'<button class="btn-disconnect" title="Disconnect">'
         f'    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"'
         f'         stroke="currentColor" stroke-width="2.5">'
@@ -737,6 +743,7 @@ async def add_device_chip(dev: "Element"):
     dl.appendChild(chip)
     import sync
     sync.refresh_device_dropdowns()
+    _update_battery_extras(dev, chip)
     ensure_link_watchdog()
 
 # ── Connection watchdog ──────────────────────────────────────────────────────
@@ -763,9 +770,20 @@ def _refresh_link_chip(dev):
             print(f"{dev.name}: {ll.status_text(link_state)}")
         elif previous is not None:
             print(f"{dev.name}: signal is back")
+    _update_battery_extras(dev, chip)
+
+def _update_battery_extras(dev, chip):
+    """The visible "last reported N min ago" next to the battery, and the tooltip. Each is
+    only written when its text actually changed, so nothing churns once a second."""
+    link = dev.link
+    age = ll.age_label(link.battery_age(time.monotonic())) if link is not None else ""
+    label = chip.querySelector(".device-battery-age")
+    if label and label.textContent != age:
+        label.textContent = age
     battery = chip.querySelector(".device-battery")
-    if battery:
-        battery.title = dev.battery_tooltip()    # keeps "last reported N min ago" current
+    tip = dev.battery_tooltip()
+    if battery and battery.title != tip:
+        battery.title = tip
 
 async def _link_watchdog():
     global _watchdog_running

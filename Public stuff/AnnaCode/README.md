@@ -113,7 +113,7 @@ and motor panel.
   page has heard nothing for several seconds but the browser has not reported a drop. It is
   only a warning and clears by itself if data returns. To recover from a disconnect, click
   the chip's **x** and press **Connect device** again.
-- **Battery percentage.** The hub only reports its battery level when it chooses to, and
+- **Battery percentage.** Each device only reports its battery level when it chooses to, and
   the page can only show what it is sent. Hover over a chip's battery to see when the last
   report arrived and how many reports there have been. The browser console (Cmd+Opt+J)
   logs a `battery reading` line for every report. A battery number on a red chip may be

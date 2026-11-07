@@ -1752,3 +1752,6 @@ body {
 .device-row.lost .device-status { display: inline; }
 .device-row.lost .device-indicator { background: var(--red); animation: none; }
 .device-row.lost .device-battery { opacity: 0.45; }
+
+.device-battery-age { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+.device-row.lost .device-battery-age { opacity: 0.45; }

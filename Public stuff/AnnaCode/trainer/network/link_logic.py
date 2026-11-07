@@ -68,10 +68,16 @@ def age_text(seconds) -> str:
     return f"{seconds // 3600} h ago"
 
 
+def age_label(seconds) -> str:
+    """Text shown on the chip beside the battery: how long since the last report.
+    Empty until a report has arrived."""
+    return "" if seconds is None else age_text(seconds)
+
+
 def battery_title(level, age, reports: int, link_state: str) -> str:
     """Tooltip for the battery icon."""
     if level is None:
-        return "Waiting for a battery report from the hub"
+        return "Waiting for a battery report from the device"
     text = f"Battery {level}%"
     if age is not None:
         text += f", last reported {age_text(age)} ({reports} report{'s' if reports != 1 else ''} so far)"

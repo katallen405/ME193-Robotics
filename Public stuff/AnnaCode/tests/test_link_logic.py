@@ -83,6 +83,11 @@ class Text(unittest.TestCase):
         self.assertEqual(ll.age_text(7300), "2 h ago")
         self.assertEqual(ll.age_text(-5), "just now")
 
+    def test_age_label_is_empty_until_a_report_arrives(self):
+        self.assertEqual(ll.age_label(None), "")
+        self.assertEqual(ll.age_label(2), "just now")
+        self.assertEqual(ll.age_label(150), "2 min ago")
+
     def test_status_text(self):
         self.assertEqual(ll.status_text("ok"), "")
         self.assertEqual(ll.status_text("disconnected"), "Disconnected")
