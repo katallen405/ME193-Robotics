@@ -208,9 +208,11 @@ cd "Public stuff/AnnaCode"
 python3 serve.py
 ```
 
-then open `http://localhost:8000/` (builder) or
-`http://localhost:8000/trainer.html` (trainer) in Chrome. `localhost` is
-allowed to use Bluetooth. `python3 serve.py 8001` picks another port.
+then open `http://localhost:8000/AnnaCode/` (builder) or
+`http://localhost:8000/AnnaCode/trainer.html` (trainer) in Chrome. `localhost` is
+allowed to use Bluetooth. `python3 serve.py 8001` picks another port. The server
+serves the whole `Public stuff` folder, because both pages load the shared
+`../QLearn/webhub.py`.
 
 `serve.py` is `python3 -m http.server` with browser caching switched off. Prefer it when
 you edit files or switch branches: the plain server lets Chrome keep old copies, and
