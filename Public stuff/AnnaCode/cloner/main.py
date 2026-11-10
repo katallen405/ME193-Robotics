@@ -35,6 +35,7 @@ mode = "idle"                 # "idle" | "record" | "run"
 sent = None                   # (left, right, ticks since sent) last motor command
 table_version = 0             # bumped when counts change, so the table HTML is only rebuilt then
 drawn_version = -1
+lights_sent = {}              # sensor device name -> light intensity last sent (absent = 100, the hub default)
 last_pattern = None
 
 
@@ -77,6 +78,7 @@ def settings() -> dict:
         "speed": number("speed", tl.DEFAULT_SPEED),
         "reverse": checked("reverse"),
         "correct": checked("add-corrections", True),
+        "save_power": checked("save-power"),
     }
 
 def read_sensors() -> list:
@@ -134,6 +136,23 @@ def halt():
         except Exception as e:
             print("Could not stop the motors: " + str(e))
 
+def apply_sensor_lights(s):
+    """'Save power': dim the three sensors' lights to 0% while idle, back to 100% for Record/Run.
+    Only sends a command when the wanted level changes (a hub starts at 100%). The library can
+    set a hub's light color/intensity; it has no command for the sensor's measuring LED."""
+    want = 0 if (s["save_power"] and mode == "idle") else 100
+    names = {d.name for d in state.devices}
+    for gone in [n for n in lights_sent if n not in names]:
+        del lights_sent[gone]               # a reconnected hub starts at 100% again
+    for sel_id in sync.SENSOR_SELECTS:
+        sel = get_id(sel_id)
+        dev = Device.device_by_name(sel.value) if sel and sel.value else None
+        if dev is None or Device.link_dropped(dev):
+            continue
+        if lights_sent.get(dev.name, 100) != want:
+            Device.run_output("LightIntensity", dev.name, want)
+            lights_sent[dev.name] = want
+
 def human_commands(sl, sr, s):
     return (tele.command_for("LeftSpeed", sl, sr, s["speed"], s["reverse"]),
             tele.command_for("RightSpeed", sl, sr, s["speed"], s["reverse"]))
@@ -178,6 +197,7 @@ def tick():
         elif sent is not None and (sent[0] or sent[1]):
             drive(0, 0)
 
+    apply_sensor_lights(s)
     render_live(readings, bits, pattern, s, human, predicted, source, driver)
     render_table(pattern)
 

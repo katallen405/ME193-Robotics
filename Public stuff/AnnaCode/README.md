@@ -102,6 +102,11 @@ Mount the three Color Sensors pointing left, front and right on a Double Motor b
 5. **Push a stick to take over.** With *Add my corrections while running* on, your action is
    tallied too, so the table improves where the car actually goes wrong (the DAgger idea).
 
+**Save power** (off by default) dims the three sensors' lights to 0% while the page is idle and
+restores them for Record and Run. The `legoeducation` library only has a command for the hub's
+light color and brightness, so this switches that light; it can't turn off the sensor's own
+measuring LED. Readings keep working either way.
+
 The table is saved in the browser. **Clear table** starts over. Hub, Bluetooth and joystick code is
 shared with the Trainer (`trainer/Device.py`, `trainer/network/teleop_logic.py`); the table logic is
 `cloner/table_logic.py` (pure Python, tested in `tests/test_table_logic.py`) and the page wiring is
