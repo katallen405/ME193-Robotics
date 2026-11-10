@@ -57,14 +57,19 @@
 
         <!-- ── Settings ── -->
         <div class="card">
-            <div class="connect-title">Sensor thresholds</div>
+            <div class="connect-title">Settings</div>
+            <div class="cl-subhead">Sensor thresholds</div>
             <div class="cl-settings">
                 <label>An object is
                     <select id="object-is"><option value="bright">brighter than</option><option value="dark">darker than</option></select>
                     <input id="threshold" type="number" min="0" max="100" value="40" title="Reflection value (0 to 100) that counts as an object"> reflection</label>
-                <label>Speed <input id="speed" type="number" min="5" max="100" value="40"></label>
-                <label><input id="reverse" type="checkbox"> Reverse (if forward drives backward)</label>
+            </div>
+            <div class="cl-settings">
+                <label>Driving speed while running table <input id="speed" type="number" min="5" max="100" value="40"></label>
+            </div>
+            <div class="cl-settings">
                 <label><input id="add-corrections" type="checkbox" checked> Add my corrections while running</label>
+                <label><input id="reverse" type="checkbox"> Reverse (if forward drives backward)</label>
             </div>
         </div>
 

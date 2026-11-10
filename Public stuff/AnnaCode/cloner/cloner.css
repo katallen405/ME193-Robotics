@@ -61,3 +61,7 @@ body.cloner input[type=checkbox] { width: 18px; height: 18px; }
 .conf { margin-left: 6px; font-size: 0.75rem; color: var(--text-muted); }
 .none { color: var(--text-muted); font-size: 0.85rem; }
 @media (max-width: 600px) { .pname { display: none; } .cl-sensors { gap: 6px; } }
+
+.cl-subhead { font-weight: 700; color: var(--text-primary); margin-top: 2px; }
+.cl-subhead + .cl-settings { margin-top: 8px; }
+.cl-settings + .cl-settings { margin-top: 12px; }
