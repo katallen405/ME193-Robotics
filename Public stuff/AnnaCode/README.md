@@ -9,6 +9,8 @@ install: Python runs in the page via [PyScript](https://pyscript.net).
 | **Builder** (`index.html`) | Wire sensors into a network by hand and set the weights yourself. Outputs drive motors, lights and the beeper. | [Open](https://chrisbuerginrogers.github.io/ME193-Robotics/Public%20stuff/AnnaCode/) |
 | **Trainer** (`trainer.html`) | The same tool plus a dataset and training: collect examples from your hardware, train the network, and watch the fit and loss plots. | [Open](https://chrisbuerginrogers.github.io/ME193-Robotics/Public%20stuff/AnnaCode/trainer.html) |
 
+| **Table Cloner** (`cloner.html`) | Behavior cloning with a lookup table instead of a network, for a car with a Double Motor and three Color Sensors (left, front, right). See [Table Cloner](#table-cloner-a-car-with-three-color-sensors). | `cloner.html` |
+
 ## What you need
 
 - **Chrome or Edge.** Connecting to hardware uses Web Bluetooth, which Safari
@@ -80,6 +82,30 @@ run with plain Python from this folder: `python3 -m unittest discover tests -v`.
 The wiring is `trainer/misc_ui/teleop.py`. The right wheel is sign-flipped to match
 the example networks (opposite signs for the two wheels go straight); if your robot
 drives backward, tick **Reverse**.
+
+## Table Cloner: a car with three color sensors
+
+`cloner.html` teaches a car by driving it, and stores what it learns as a table you can read.
+Mount the three Color Sensors pointing left, front and right on a Double Motor base.
+
+1. **Connect device** once per hub: the three Color Sensors, the Double Motor and a Controller.
+   The sensors fill the Left, Front and Right slots in the order you connect them; swap them
+   with the dropdowns if needed.
+2. Set what counts as an object: a close object usually *reads brighter* (reflection above
+   the threshold). Watch the three live readings light up and adjust the number.
+3. Press **Record** and drive with the sticks (left stick = left wheel, right stick = right
+   wheel). Ten times a second, the page notes which sensors see an object (8 patterns) and
+   whether you went Forward, Left, Right or Back, and adds a tally to that row. Standing
+   still teaches nothing.
+4. Press **Run table**. Each tick the car looks up its pattern and does the most-tallied action.
+   A pattern you never taught borrows the answer from the most similar one you did.
+5. **Push a stick to take over.** With *Add my corrections while running* on, your action is
+   tallied too, so the table improves where the car actually goes wrong (the DAgger idea).
+
+The table is saved in the browser. **Clear table** starts over. Hub, Bluetooth and joystick code is
+shared with the Trainer (`trainer/Device.py`, `trainer/network/teleop_logic.py`); the table logic is
+`cloner/table_logic.py` (pure Python, tested in `tests/test_table_logic.py`) and the page wiring is
+`cloner/main.py`. There are no virtual devices on this page, so it needs the real hardware and Chrome or Edge.
 
 ## No kit with you? Virtual devices (Trainer)
 
