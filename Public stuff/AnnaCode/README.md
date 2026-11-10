@@ -102,6 +102,14 @@ Mount the three Color Sensors pointing left, front and right on a Double Motor b
 5. **Push a stick to take over.** With *Add my corrections while running* on, your action is
    tallied too, so the table improves where the car actually goes wrong (the DAgger idea).
 
+**Save power** (off by default here) keeps the three Color Sensors' lights off while the page is
+idle. They come on when you press Record or Run (the page waits until they are really reading
+before it starts) and go off again when you stop. It is the same Save power as the Trainer's: the
+sensor's mode is set with the library's `set_color_sensor_mode`, and the code is shared
+(`trainer/misc_ui/power.py`, `trainer/network/power_logic.py`). It is off by default because
+the live readings go blank while a light is off, and you need them to set the threshold. Tick
+it once the threshold is right.
+
 The table is saved in the browser. **Clear table** starts over. Hub, Bluetooth and joystick code is
 shared with the Trainer (`trainer/Device.py`, `trainer/network/teleop_logic.py`); the table logic is
 `cloner/table_logic.py` (pure Python, tested in `tests/test_table_logic.py`) and the page wiring is

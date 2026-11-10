@@ -11,7 +11,8 @@ dropdowns let you swap them.
 import state
 from state import get_id
 
-SENSOR_SELECTS = ("sensor-left", "sensor-front", "sensor-right")
+# ids are dev-input-<id> because the shared Save power code looks sensors up that way (see state.py)
+SENSOR_SELECTS = ("dev-input-left", "dev-input-front", "dev-input-right")
 MOTOR_SELECT = "motor-select"
 
 

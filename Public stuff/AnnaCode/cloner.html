@@ -47,9 +47,9 @@
                Each hub is its own Bluetooth device.</p>
 
             <div class="cl-assign">
-                <label>Left sensor <select id="sensor-left" class="device-pick"></select></label>
-                <label>Front sensor <select id="sensor-front" class="device-pick"></select></label>
-                <label>Right sensor <select id="sensor-right" class="device-pick"></select></label>
+                <label>Left sensor <select id="dev-input-left" class="device-pick"></select></label>
+                <label>Front sensor <select id="dev-input-front" class="device-pick"></select></label>
+                <label>Right sensor <select id="dev-input-right" class="device-pick"></select></label>
                 <label>Motor <select id="motor-select" class="device-pick"></select></label>
             </div>
             <p class="cl-warn" id="setup-note" role="status"></p>
@@ -70,6 +70,9 @@
             <div class="cl-settings">
                 <label><input id="add-corrections" type="checkbox" checked> Add my corrections while running</label>
                 <label><input id="reverse" type="checkbox"> Reverse (if forward drives backward)</label>
+            </div>
+            <div class="cl-settings">
+                <label title="The color sensor's light uses a lot of battery. With this ticked the three sensors' lights are off except while you are recording or running the table, so the live readings above are blank the rest of the time. Leave it unticked while you set the thresholds."><input id="save-power" type="checkbox"> Save power: turn off color sensor lights when idle</label>
             </div>
         </div>
 

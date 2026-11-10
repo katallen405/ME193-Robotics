@@ -1,5 +1,5 @@
 name = "table-cloner"
-packages = [ "legoeducation==1.0.6" ]
+packages = [ "legoeducation==1.2.0" ]
 
 # The hub / Bluetooth / joystick code is shared with the Trainer (trainer/...).
 # state.py and sync.py are the Cloner's own small versions of the modules Device.py expects.
@@ -7,6 +7,9 @@ packages = [ "legoeducation==1.0.6" ]
 "./trainer/Device.py" = "./Device.py"
 "./trainer/network/link_logic.py" = "./link_logic.py"
 "./trainer/network/teleop_logic.py" = "./teleop_logic.py"
+"./trainer/network/power_logic.py" = "./power_logic.py"
+"./trainer/misc_ui/power.py" = "./power.py"
+"../QLearn/webhub.py" = "./webhub.py"
 "./cloner/main.py" = "./main.py"
 "./cloner/state.py" = "./state.py"
 "./cloner/sync.py" = "./sync.py"

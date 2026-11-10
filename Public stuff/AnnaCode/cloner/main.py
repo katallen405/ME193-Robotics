@@ -23,6 +23,7 @@ import state
 from state import get_id
 import Device
 import sync
+import power
 import table_logic as tl
 import teleop_logic as tele
 
@@ -252,8 +253,11 @@ def render_table(pattern):
 def set_mode(new_mode: str):
     global mode, sent
     mode = new_mode
+    state.is_running = (mode == "run")                 # what power.py (Save power) watches
+    state.is_generating_data = (mode == "record")
     sent = None
     halt()
+    asyncio.ensure_future(power.reconcile())           # sensor lights follow the mode
     for name in ("record", "run"):
         btn = get_id(f"{name}-btn")
         if btn:
@@ -267,13 +271,32 @@ def set_mode(new_mode: str):
     document.body.classList.toggle("running", mode == "run")
     document.body.classList.toggle("recording", mode == "record")
 
+async def switch_mode(target: str):
+    """Stop (back to idle), or start Record/Run. Starting waits until the sensors are really
+    reading (Save power may have their lights off), so the first rows and the first motor
+    commands are never based on a sleeping sensor's stale reading."""
+    if mode == target:
+        set_mode("idle")
+        return
+    if mode != "idle":
+        set_mode("idle")
+    # Pretend the mode is already on so power.py wakes the sensors, wait for them, then start.
+    state.is_running = (target == "run")
+    state.is_generating_data = (target == "record")
+    await power.ensure_ready()
+    set_mode(target)
+
 @when("click", "#record-btn")
-def on_record(evt):
-    set_mode("idle" if mode == "record" else "record")
+async def on_record(evt):
+    await switch_mode("record")
 
 @when("click", "#run-btn")
-def on_run(evt):
-    set_mode("idle" if mode == "run" else "run")
+async def on_run(evt):
+    await switch_mode("run")
+
+@when("change", "#save-power")
+def on_save_power(evt):
+    asyncio.ensure_future(power.reconcile())
 
 @when("click", "#clear-btn")
 def on_clear(evt):
@@ -318,6 +341,7 @@ def boot():
     load_table()
     set_mode("idle")
     sync.refresh_device_dropdowns()
+    power.start()
     asyncio.ensure_future(main_loop())
 
 boot()
