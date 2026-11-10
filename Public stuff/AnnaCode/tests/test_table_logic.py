@@ -124,5 +124,119 @@ class Table(unittest.TestCase):
         self.assertEqual(t.total(), 0)
 
 
+class StepPlan(unittest.TestCase):
+    def test_moves_and_turns(self):
+        self.assertEqual(tl.step_plan("Forward", 400), ("move", "forward", 400))
+        self.assertEqual(tl.step_plan("Back", 400), ("move", "back", 400))
+        self.assertEqual(tl.step_plan("Left"), ("turn", "left", 90))
+        self.assertEqual(tl.step_plan("Right"), ("turn", "right", 90))
+
+    def test_stop_and_unknown_do_nothing(self):
+        self.assertIsNone(tl.step_plan("Stop"))
+        self.assertIsNone(tl.step_plan("nonsense"))
+
+    def test_reverse_swaps_only_the_moves(self):
+        self.assertEqual(tl.step_plan("Forward", 400, reverse=True), ("move", "back", 400))
+        self.assertEqual(tl.step_plan("Back", 400, reverse=True), ("move", "forward", 400))
+        self.assertEqual(tl.step_plan("Left", reverse=True), ("turn", "left", 90))
+
+    def test_bad_car_length_falls_back(self):
+        self.assertEqual(tl.step_plan("Forward", None)[2], tl.DEFAULT_CAR_LENGTH_DEG)
+        self.assertEqual(tl.step_plan("Forward", -5)[2], 1)
+
+
+class ClassifyStep(unittest.TestCase):
+    def test_left_stick_is_forward_and_back(self):
+        self.assertEqual(tl.classify_step(90, 0), "Forward")
+        self.assertEqual(tl.classify_step(-90, 0), "Back")
+
+    def test_right_stick_is_turn(self):
+        self.assertEqual(tl.classify_step(0, 90), "Right")
+        self.assertEqual(tl.classify_step(0, -90), "Left")
+
+    def test_turn_sign_flips_the_turn_only(self):
+        self.assertEqual(tl.classify_step(0, 90, turn_sign=-1), "Left")
+        self.assertEqual(tl.classify_step(0, -90, turn_sign=-1), "Right")
+        self.assertEqual(tl.classify_step(90, 0, turn_sign=-1), "Forward")
+
+    def test_the_stick_pushed_further_wins(self):
+        self.assertEqual(tl.classify_step(60, 90), "Right")
+        self.assertEqual(tl.classify_step(90, -60), "Forward")
+
+    def test_idle_inside_deadband(self):
+        self.assertIsNone(tl.classify_step(0, 0))
+        self.assertIsNone(tl.classify_step(10, -10))
+        self.assertIsNone(tl.classify_step(None, None))
+
+
+class StepTriggerTests(unittest.TestCase):
+    def push(self, trig, *ticks):
+        return [trig.update(l, r) for l, r in ticks]
+
+    def test_fires_once_after_confirmation(self):
+        t = tl.StepTrigger()
+        self.assertEqual(self.push(t, (80, 0), (90, 0), (90, 0)), [None, "Forward", None])
+
+    def test_below_commit_never_fires(self):
+        t = tl.StepTrigger()
+        self.assertEqual(self.push(t, (40, 0), (40, 0), (40, 0)), [None, None, None])
+
+    def test_changing_direction_restarts_the_confirmation(self):
+        t = tl.StepTrigger()
+        out = self.push(t, (70, 0), (60, 90), (60, 95))
+        self.assertEqual(out, [None, None, "Right"])
+
+    def test_must_recentre_before_firing_again(self):
+        t = tl.StepTrigger()
+        self.push(t, (90, 0), (90, 0))
+        self.assertEqual(self.push(t, (90, 0), (90, 0), (90, 0)), [None, None, None])
+        self.assertEqual(self.push(t, (0, 0), (0, -90), (0, -90)), [None, None, "Left"])
+
+    def test_back_and_right(self):
+        t = tl.StepTrigger()
+        self.assertEqual(self.push(t, (-90, 0), (-90, 0))[-1], "Back")
+        self.push(t, (0, 0))
+        self.assertEqual(self.push(t, (0, 90), (0, 90))[-1], "Right")
+
+    def test_reset_rearms(self):
+        t = tl.StepTrigger()
+        self.push(t, (90, 0), (90, 0))
+        t.reset()
+        self.assertEqual(self.push(t, (90, 0), (90, 0))[-1], "Forward")
+
+
+class MoveClockTests(unittest.TestCase):
+    def test_not_done_while_wheels_turn(self):
+        c = tl.MoveClock(0.0)
+        self.assertFalse(c.done(1.0, 40, -40))
+        self.assertFalse(c.done(2.0, 40, -40))
+
+    def test_done_after_wheels_stay_still(self):
+        c = tl.MoveClock(0.0)
+        self.assertFalse(c.done(1.0, 40, -40))
+        self.assertFalse(c.done(1.1, 0, 0))      # just stopped
+        self.assertFalse(c.done(1.3, 0, 0))
+        self.assertTrue(c.done(1.5, 0, 0))       # still for 0.4 s >= settle
+
+    def test_a_pause_that_restarts_does_not_count(self):
+        c = tl.MoveClock(0.0)
+        c.done(1.0, 0, 0)
+        self.assertFalse(c.done(1.2, 30, 30))    # moving again: the still timer restarts
+        self.assertFalse(c.done(1.3, 0, 0))
+
+    def test_minimum_time_before_finishing(self):
+        c = tl.MoveClock(0.0)
+        self.assertFalse(c.done(0.1, 0, 0))      # wheels haven't started yet
+
+    def test_timeout(self):
+        c = tl.MoveClock(0.0)
+        self.assertTrue(c.done(tl.MOVE_TIMEOUT_S, 50, 50))
+
+    def test_no_telemetry_waits_a_fixed_time(self):
+        c = tl.MoveClock(0.0)
+        self.assertFalse(c.done(1.0, None, None))
+        self.assertTrue(c.done(tl.MOVE_NO_DATA_S, None, None))
+
+
 if __name__ == "__main__":
     unittest.main()

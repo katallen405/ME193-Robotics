@@ -16,7 +16,9 @@ All the decisions are in table_logic.py (pure, unit-tested). This file is the wi
 """
 import asyncio
 import json
+import time
 
+import legoeducation as le
 from pyscript import document, when, window
 
 import state
@@ -37,6 +39,8 @@ sent = None                   # (left, right, ticks since sent) last motor comma
 table_version = 0             # bumped when counts change, so the table HTML is only rebuilt then
 drawn_version = -1
 last_pattern = None
+step_trigger = tl.StepTrigger()   # step mode: one joystick push = one move
+step_move = None              # step mode: the move the hub is carrying out: {action, clock}
 
 
 # ── Saving ───────────────────────────────────────────────────────────────────
@@ -78,6 +82,8 @@ def settings() -> dict:
         "speed": number("speed", tl.DEFAULT_SPEED),
         "reverse": checked("reverse"),
         "correct": checked("add-corrections", True),
+        "step": checked("step-mode"),
+        "car_length": number("car-length", tl.DEFAULT_CAR_LENGTH_DEG),
     }
 
 def read_sensors() -> list:
@@ -151,11 +157,13 @@ def tick():
     last_pattern = pattern
 
     sl, sr = read_sticks()
-    human = tl.classify_action(sl, sr)
+    human = (tl.classify_step if s["step"] else tl.classify_action)(sl, sr)
     predicted, source = table.predict(pattern)
     driver = "none"
 
-    if mode == "record":
+    if s["step"]:
+        driver = step_tick(s, pattern, sl, sr, predicted, source)
+    elif mode == "record":
         driver = "you"
         if human is not None:
             table.add(pattern, human)
@@ -180,7 +188,62 @@ def tick():
             drive(0, 0)
 
     render_live(readings, bits, pattern, s, human, predicted, source, driver)
+    if step_move is not None:
+        set_text("live-human", step_move["action"] + " (moving)")
     render_table(pattern)
+
+
+# ── Step mode: whole moves instead of continuous driving ─────────────────────
+
+def send_step(action: str, s: dict) -> bool:
+    """Ask the Double Motor for one move (forward/back one car length, or a 90 degree turn)
+    without waiting for it to finish. Returns False if nothing could be sent."""
+    plan = tl.step_plan(action, s["car_length"], s["reverse"])
+    dev = motor_device()
+    if plan is None or dev is None or Device.link_dropped(dev) or getattr(dev, "hub", None) is None:
+        return False
+    kind, direction, amount = plan
+    try:
+        if kind == "move":
+            way = le.MOVEMENT_MOVE_DIRECTION_FORWARD if direction == "forward" else le.MOVEMENT_MOVE_DIRECTION_BACKWARD
+            dev.hub.movement_move_for_degrees(amount, direction=way, speed=int(s["speed"]), blocking=False)
+        else:
+            way = le.MOVEMENT_TURN_DIRECTION_LEFT if direction == "left" else le.MOVEMENT_TURN_DIRECTION_RIGHT
+            dev.hub.movement_turn_for_degrees(amount, direction=way, speed=int(s["speed"]), blocking=False)
+    except Exception as e:
+        print(f"Could not start the {action} move: {e}")
+        return False
+    return True
+
+def start_step(action: str, s: dict):
+    global step_move, sent
+    sent = None
+    if send_step(action, s):
+        step_move = {"action": action, "clock": tl.MoveClock(time.monotonic())}
+
+def step_tick(s, pattern, sl, sr, predicted, source) -> str:
+    """One tick of step mode. A joystick push is one move (and, while recording, one example for
+    the table); while running, the table picks a move whenever the car is standing still and you
+    are not pushing. Returns who is driving, for the display."""
+    global step_move, table_version
+    if step_move is not None:
+        dev = motor_device()
+        dev_state = dev.state if dev is not None else {}
+        if dev is None or Device.link_dropped(dev) or step_move["clock"].done(
+                time.monotonic(), dev_state.get("LeftSpeed"), dev_state.get("RightSpeed")):
+            step_move = None
+        return "moving"
+    fired = step_trigger.update(sl, sr)
+    if fired is not None:
+        if mode == "record" or (mode == "run" and s["correct"]):
+            table.add(pattern, fired)
+            table_version += 1
+        start_step(fired, s)
+        return "you"
+    if mode == "run" and source != "none" and predicted != "Stop":
+        start_step(predicted, s)
+        return "table"
+    return "none"
 
 
 # ── Drawing ──────────────────────────────────────────────────────────────────
@@ -251,11 +314,13 @@ def render_table(pattern):
 # ── Buttons ──────────────────────────────────────────────────────────────────
 
 def set_mode(new_mode: str):
-    global mode, sent
+    global mode, sent, step_move
     mode = new_mode
     state.is_running = (mode == "run")                 # what power.py (Save power) watches
     state.is_generating_data = (mode == "record")
     sent = None
+    step_move = None
+    step_trigger.reset()
     halt()
     asyncio.ensure_future(power.reconcile())           # sensor lights follow the mode
     for name in ("record", "run"):

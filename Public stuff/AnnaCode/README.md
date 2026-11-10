@@ -102,6 +102,23 @@ Mount the three Color Sensors pointing left, front and right on a Double Motor b
 5. **Push a stick to take over.** With *Add my corrections while running* on, your action is
    tallied too, so the table improves where the car actually goes wrong (the DAgger idea).
 
+**Step mode** (experimental, off by default) changes what the joystick does. Instead of driving the wheels
+continuously, one push gives one whole move. The **left stick** is forward/back: push it forward to drive
+one car length, pull it back to drive one car length backwards. The **right stick** is turn: push it forward
+for a 90 degree right turn, pull it back for a 90 degree left turn. Push a stick past about 60%, hold it for
+a fifth of a second, and the move starts; bring the sticks back to centre before the next one (if both are
+pushed, the one pushed further wins). While recording, each
+push is one tally in the table. **Run table** then makes one move at a time: it looks up the pattern, makes
+the move, waits for the wheels to stop, and looks again. Pushing a stick between moves takes over, as before.
+- **One car length** is a setting in wheel degrees (the Double Motor has no idea how long your car is).
+  Start at 360, push forward once, and adjust the number until one push moves one car length.
+- Moves use the Double Motor's own `movement_move_for_degrees` and `movement_turn_for_degrees`; the turn
+  is confirmed by the hub's rotation sensor. The page decides a move is finished when the wheel speeds
+  have stayed at zero for a third of a second (or after 8 seconds).
+- **Driving speed** is the speed of each move. **Reverse** swaps forward and back (not the turns).
+- Logic: `classify_step`, `StepTrigger`, `MoveClock` and `step_plan` in `cloner/table_logic.py` (tested); wiring in
+  `cloner/main.py`. Not yet tried on a real car.
+
 **Save power** (off by default here) keeps the three Color Sensors' lights off while the page is
 idle. They come on when you press Record or Run (the page waits until they are really reading
 before it starts) and go off again when you stop. It is the same Save power as the Trainer's: the
