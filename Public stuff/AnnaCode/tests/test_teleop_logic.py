@@ -152,9 +152,9 @@ class Quantize(unittest.TestCase):
 
 
 class ReverseBox(unittest.TestCase):
-    """The main page's Reverse checkbox, checked against what a real car did (virtual controller
-    arrow keys, Max speed 50, the Double Motor's light as the car's front). Sticks are what the
-    virtual controller's arrow keys give."""
+    """The main page's Reverse checkbox, checked against what a real car did (Max speed 50, the
+    Double Motor's light as the car's front). Sticks are the values the arrow keys gave: Up is both
+    sticks forward, Left is the left stick back and the right stick forward, and so on."""
     KEYS = {"Up": (100, 100), "Down": (-100, -100), "Left": (-100, 100), "Right": (100, -100)}
 
     def wheels(self, key, reverse_checked):

@@ -6,7 +6,7 @@
     <script>
         // Web Bluetooth (needed for the hardware) only exists in Chrome/Chromium browsers
         if (!navigator.bluetooth) {
-            alert("AnnaCode only works with hardware in Google Chrome.\n\nPlease reopen this page in Chrome to connect to your hub.");
+            alert("AnnaCode needs Chrome or Edge (Safari and Firefox have no Web Bluetooth).\n\nPlease reopen this page in Chrome or Edge to connect to your hub.");
         }
     </script>
     <link rel="stylesheet" href="https://pyscript.net/releases/2026.3.1/core.css">
@@ -40,17 +40,6 @@
         <div class="card connect-card">
             <div class="connect-header devices-header">
                 <span class="connect-title">Devices</span>
-                <div class="add-virtual" title="No kit with you? Add a pretend device and use it like the real one.">
-                    <select class="add-virtual-select" id="add-virtual-select" aria-label="Virtual device to add">
-                        <option value="">Choose a virtual device…</option>
-                        <option value="controller">Controller (sliders and keyboard)</option>
-                        <option value="double_motor">Double Motor</option>
-                        <option value="single_motor">Single Motor</option>
-                        <option value="color_sensor">Color Sensor</option>
-                    </select>
-                    <button class="btn-add-virtual" id="add-virtual-btn" disabled>Add</button>
-                    <span class="add-virtual-status" id="add-virtual-status" role="status" aria-live="polite"></span>
-                </div>
                 <label class="save-power" title="The color sensor's light uses a lot of battery. With this ticked the light is off except while you are recording data or running the network, so the sensor's live reading is blank the rest of the time. Untick it to watch the sensor live.">
                     <input type="checkbox" id="save-power" checked /> Save power: sensor light off unless recording or running
                 </label>
@@ -64,9 +53,6 @@
                     Connect device
                 </button>
             </div>
-
-            <!-- ── Virtual devices added with the dropdown above (misc_ui/virtual_devices.py) ── -->
-            <div class="virtual-devices" id="virtual-devices"></div>
         </div>
 
         <!-- ── Network card ──────────────────────────────────────── -->

@@ -26,7 +26,7 @@ _generation = 0      # bumped on every arm/disarm so a stale loop exits instead 
 # ── Page settings and devices ────────────────────────────────────────────────
 
 def find_controller():
-    """First connected device that reports joystick channels (a Controller, or the virtual one)."""
+    """First connected device that reports joystick channels (a Controller)."""
     for dev in state.devices:
         dev_state = getattr(dev, "state", None)
         if isinstance(dev_state, dict) and "LeftPercent" in dev_state:
@@ -151,7 +151,7 @@ def _status_text() -> tuple[str, bool]:
     are not set up to steer (nothing chosen, nothing a stick can drive, or only one drive output)."""
     ctrl = find_controller()
     if ctrl is None:
-        text = "No controller found. Connect one, or add a virtual controller in the Devices card."
+        text = "No controller found. Connect one."
     elif Device.link_dropped(ctrl):
         text = f"{ctrl.name}: connection lost, so the sticks are ignored"
     else:

@@ -36,7 +36,6 @@ import transfer_plot
 import help_system
 import presets
 import training
-import virtual_devices
 import teleop
 import power
 import asyncio
@@ -256,21 +255,6 @@ async def _on_load_file(evt):
         training.load_dataset(await file.text())
     evt.target.value = ""   # so the same file can be loaded again
 
-@when("change", "#add-virtual-select")
-def on_virtual_choice(evt):
-    # Choosing only selects; the Add button confirms.
-    state.get_id("add-virtual-btn").disabled = not evt.target.value
-
-@when("click", "#add-virtual-btn")
-def on_add_virtual_device(evt):
-    select = state.get_id("add-virtual-select")
-    kind = select.value
-    if not kind:
-        return
-    dev = virtual_devices.add(kind)
-    select.value = ""                                   # back to the prompt, ready for another
-    state.get_id("add-virtual-btn").disabled = True
-    virtual_devices.announce(f"Added {dev.name}" if dev else "Could not add that device")
 
 @when("change", "#save-power")
 def on_save_power_toggle(evt):

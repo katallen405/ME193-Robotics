@@ -24,7 +24,7 @@ of a network, for a car with a Double Motor and three Color Sensors. See [Table 
 ## What you need
 
 - **Chrome or Edge.** Connecting to hardware uses Web Bluetooth, which Safari
-  and Firefox don't have. (Everything else works there with the virtual devices below.)
+  and Firefox don't have, so the page can't connect to hardware there.
 - A LEGO Education hub that is switched on. Turn off other apps connected to
   it first; a hub only talks to one at a time.
 - The first load takes a while (the browser downloads Python and numpy).
@@ -48,8 +48,7 @@ Picking a hub that is already connected shows an alert and does nothing.
 
 ## Teaching by joystick (Training tab)
 
-Connect a LEGO **Controller** as well as the motor and color sensor (or add a virtual
-controller, below), switch to the **Training** tab, and tick **Drive with controller**
+Connect a LEGO **Controller** as well as the motor and color sensor, switch to the **Training** tab, and tick **Drive with controller**
 in the Training card. This is
 behavior cloning with a human demonstrator, using the controller as the teacher:
 
@@ -86,9 +85,8 @@ With a single output (`BothSpeed` or `Speed`) the car can go forward and back bu
 turn, because a turn needs different commands for the two wheels; use `LeftSpeed` and
 `RightSpeed` as two outputs to steer.
 
-No controller? Add a virtual one (next section). If both a real and a virtual
-controller are connected, the first one in the Devices list is used (the status line
-under the checkboxes names it).
+If more than one controller is connected, the first one in the Devices list is used (the
+status line under the checkboxes names it).
 
 The joystick-to-motor mapping is `network/teleop_logic.py` and its tests
 run with plain Python from this folder: `python3 -m unittest discover tests -v`.
@@ -97,42 +95,12 @@ the example networks (opposite signs for the two wheels go straight).
 
 **Which way is forward.** Measured on a real car with the Double Motor's light as its front end:
 the Double Motor's `LeftSpeed` output drives the wheel on the car's *right*. So with **Reverse
-unticked**, the up arrow (or both sticks forward) drives the car *away* from the light, down drives
-it toward the light, and left and right turn the car counter-clockwise and clockwise (seen from
-above). Tick **Reverse** if the other end of your car is its front: forward and back swap
-(up drives toward the light), and the sticks switch wheels so left still turns counter-clockwise
-and right still clockwise. A turn never changes direction, because it does not depend on which end
-is the front. (Only the main page works this way; the Table Cloner keeps its own mapping.)
-
-## No kit with you? Virtual devices
-
-In the Devices card, pick a device from **Choose a virtual device…** and press **Add**.
-A card for it appears (with a short "Added ..." confirmation next to the button) and it
-shows up in every Input and Output dropdown. It behaves like the real one. Use as many
-as you like, mixed with real hardware or on their own (no Bluetooth needed, so it also
-works in Safari and Firefox). The **×** on a card removes it.
-
-| Virtual device | Channels it shows | Notes |
-|---|---|---|
-| Controller | `LeftPercent`, `RightPercent` | Two sliders, plus the keyboard (below) |
-| Double Motor | `LeftSpeed`, `RightSpeed`, `BothSpeed`, `LeftPosition`, `RightPosition`, `LeftAngle`, `RightAngle`, `LeftPower`, `RightPower` | Wheels are mirrored like the real chassis. Outputs: `LeftSpeed`, `RightSpeed`, `BothSpeed` |
-| Single Motor | `Speed`, `Position`, `Angle`, `Power` | Output: `Speed` |
-| Color Sensor | `Reflection` | Slide it to change what the sensor "sees" (0 dark, 100 bright) |
-
-**Keyboard for the virtual controller** (works whenever you are not typing in a box;
-Cmd/Ctrl shortcuts are left alone):
-
-- **Arrow keys** drive like a car: up/down = both sticks forward/back, left/right = turn.
-- **W / S** = left stick up/down, **I / K** = right stick up/down.
-- The sticks ease out while a key is held and spring back when you let go.
-
-With a virtual controller you can do the whole loop at home: add a controller, a color
-sensor and a motor, tick **Drive with controller**, **Record** while you slide the
-sensor and drive with the keys, train, and **Run**.
-
-Virtual devices only have the channels listed above (a real device reports more, such
-as the IMU and color channels). Their logic is `misc_ui/virtual_devices.py`,
-with the numbers in `network/virtual_logic.py` (unit-tested).
+unticked**, both sticks forward drives the car *away* from the light, both back drives it toward
+the light, and the left stick back with the right stick forward turns it counter-clockwise (the
+opposite pair turns it clockwise), seen from above. Tick **Reverse** if the other end of your car is
+its front: forward and back swap (both sticks forward drives toward the light), and the sticks
+switch wheels so the turns keep their direction. A turn never changes direction, because it does
+not depend on which end is the front. (Only the main page works this way; the Table Cloner keeps its own mapping.)
 
 ## Table Cloner: a car with three color sensors
 
@@ -175,8 +143,8 @@ readings go blank while a light is off and you need them to set the threshold. T
 
 The table is saved in the browser; **Clear table** starts over. The hub, Bluetooth and joystick code is shared
 with the main page (`Device.py`, `network/teleop_logic.py`). The table logic is `cloner/table_logic.py` (pure Python,
-tested in `tests/test_table_logic.py`) and the page wiring is `cloner/main.py`. There are no virtual devices on
-this page, so it needs the real hardware and Chrome or Edge.
+tested in `tests/test_table_logic.py`) and the page wiring is `cloner/main.py`. It needs the real hardware and
+Chrome or Edge.
 
 **What has been tried:** the table logic, the step-mode trigger and the move timing are unit-tested, and the page
 wiring was run against simulated sensors and sticks. It has not yet been driven on a real car, so the Step mode
@@ -275,7 +243,7 @@ cloner.html, cloner.toml, cloner/ The Table Cloner page: its own main.py, table_
 tests/                            Unit tests for the pure-logic modules
 ```
 
-The pure-logic modules (`network/teleop_logic.py`, `virtual_logic.py`, `link_logic.py`,
+The pure-logic modules (`network/teleop_logic.py`, `link_logic.py`,
 `power_logic.py`) have no page code in them, so their tests run with plain Python from
 this folder: `python3 -m unittest discover tests -v`.
 

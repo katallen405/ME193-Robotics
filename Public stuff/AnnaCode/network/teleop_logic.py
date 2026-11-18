@@ -46,7 +46,7 @@ def _shape(value: float, deadband: float) -> float:
 def chassis_for_reverse_box(reverse_checked: bool) -> tuple[bool, bool]:
     """(reverse, swap_sides) to pass to command_for for the main page's Reverse checkbox.
 
-    Measured on a real car, driven by the virtual controller, with the Double Motor's light as
+    Measured on a real car, driven by a controller, with the Double Motor's light as
     the car's front end: the Double Motor's "Left" output drives the wheel on the car's RIGHT, so
     the left stick has to drive "RightSpeed". Turning left is counter-clockwise seen from above
     whichever end is the front, so a turn must keep its meaning when the front end changes.
