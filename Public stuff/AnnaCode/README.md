@@ -7,7 +7,7 @@ A browser page for building small neural networks, training them from examples, 
 connecting them to LEGO Education hardware (motors, color sensor, controller). Nothing to
 install: Python runs in the page via [PyScript](https://pyscript.net).
 
-The page has four tabs along the top of the network:
+The page has five tabs along the top of the network:
 
 | Tab | What it does |
 |---|---|
@@ -15,11 +15,10 @@ The page has four tabs along the top of the network:
 | **Advanced** | The same, with activation functions you can choose and edit. |
 | **Fitting** | Fit a network to an example curve by hand, to see what weights, biases and activations do. |
 | **Training** | Record examples from your hardware (or teach by joystick), train the network, and watch the fit and loss plots. |
+| **Table Cloner** | Behavior cloning with a lookup table instead of a network, for a car with a Double Motor and three Color Sensors. See [Table Cloner](#table-cloner-a-car-with-three-color-sensors). |
 
-The old separate Trainer page (`trainer.html`) now just sends you to the **Training** tab.
-
-There is also a second page, the **Table Cloner** (`cloner.html`): behavior cloning with a lookup table instead
-of a network, for a car with a Double Motor and three Color Sensors. See [Table Cloner](#table-cloner-a-car-with-three-color-sensors).
+The old separate pages now just send you to the matching tab: `trainer.html` to **Training** and `cloner.html`
+to **Table Cloner** (you can also open `index.html?mode=training` or `index.html?mode=cloner` directly).
 
 ## What you need
 
@@ -100,26 +99,32 @@ the light, and the left stick back with the right stick forward turns it counter
 opposite pair turns it clockwise), seen from above. Tick **Reverse** if the other end of your car is
 its front: forward and back swap (both sticks forward drives toward the light), and the sticks
 switch wheels so the turns keep their direction. A turn never changes direction, because it does
-not depend on which end is the front. (Only the main page works this way; the Table Cloner keeps its own mapping.)
+not depend on which end is the front. The **Reverse** checkbox is in the Devices card at the top, so it means the same on every tab, including
+the Table Cloner.
 
 ## Table Cloner: a car with three color sensors
 
-`cloner.html` teaches a car by driving it, and stores what it learns as a table you can read.
+The **Table Cloner** tab teaches a car by driving it, and stores what it learns as a table you can read.
 Mount the three Color Sensors pointing left, front and right on a Double Motor base.
 
-1. **Connect device** once per hub: the three Color Sensors, the Double Motor and a Controller.
-   The sensors fill the Left, Front and Right slots in the order you connect them; swap them
-   with the dropdowns if needed.
+1. **Connect device** once per hub in the Devices card at the top: the three Color Sensors, the Double Motor
+   and a Controller. On the Table Cloner tab the sensors fill the Left, Front and Right slots in the order
+   you connect them; swap them with the dropdowns if needed.
 2. Set what counts as an object: a close object usually *reads brighter* (reflection above
    the threshold). Watch the three live readings light up and adjust the number.
-3. Press **Record** and drive with the sticks (left stick = left wheel, right stick = right
-   wheel). Ten times a second, the page notes which sensors see an object (8 patterns) and
-   whether you went Forward, Left, Right or Back, and adds a tally to that row. Standing
-   still teaches nothing.
+3. Press **Record** and drive with the sticks (tank drive: both sticks forward drives forward, and the left
+   stick back with the right stick forward spins left). Ten times a second, the page notes which sensors see
+   an object (8 patterns) and whether you went Forward, Left, Right or Back, and adds a tally to that row.
+   Standing still teaches nothing.
 4. Press **Run table**. Each tick the car looks up its pattern and does the most-tallied action.
    A pattern you never taught borrows the answer from the most similar one you did.
 5. **Push a stick to take over.** With *Add my corrections while running* on, your action is
    tallied too, so the table improves where the car actually goes wrong (the DAgger idea).
+
+The wheels follow the same mapping, and the same **Reverse** checkbox, as driving with the controller on the other
+tabs (see "Which way is forward" above): with Reverse unticked, Forward drives away from the Double Motor's light.
+Opening another tab stops the Table Cloner and its motors, and opening the Table Cloner stops a running network
+and any Training recording, so the car is only ever driven from one place.
 
 **Step mode** (experimental, off by default) changes what the joystick does. Instead of driving the wheels
 continuously, one push gives one whole move. The **left stick** is forward/back: push it forward to drive
@@ -135,20 +140,20 @@ looks again. Pushing a stick between moves takes over, as before.
 - Moves use the Double Motor's own `movement_move_for_degrees` and `movement_turn_for_degrees`; the turn
   is confirmed by the hub's rotation sensor. The page decides a move is finished when the wheel speeds
   have stayed at zero for a third of a second (or after 8 seconds).
-- **Driving speed** is the speed of each move. **Reverse** swaps forward and back (not the turns).
+- **Driving speed** is the speed of each move. **Reverse** swaps forward and back (not the turns); a Forward
+  move with Reverse unticked is the hub's `backward` direction, to agree with continuous driving.
 
-**Save power** works as described in [Saving the color sensor's battery](#saving-the-color-sensors-battery), and
-shares its code (`misc_ui/power.py`, `network/power_logic.py`). Here it is **off by default**, because the live
-readings go blank while a light is off and you need them to set the threshold. Tick it once the threshold is right.
+**Save power** is the same checkbox as on the other tabs (Devices card, ticked by default) and works as described in
+[Saving the color sensor's battery](#saving-the-color-sensors-battery). On this tab it keeps the three sensors' lights
+off while the Table Cloner is idle and switches them on for **Record** and **Run table**, so the live readings are blank
+until you press one of them. **Untick Save power to see live readings**, for example to set the threshold, then tick it
+again.
 
-The table is saved in the browser; **Clear table** starts over. The hub, Bluetooth and joystick code is shared
-with the main page (`Device.py`, `network/teleop_logic.py`). The table logic is `cloner/table_logic.py` (pure Python,
-tested in `tests/test_table_logic.py`) and the page wiring is `cloner/main.py`. It needs the real hardware and
-Chrome or Edge.
-
-**What has been tried:** the table logic, the step-mode trigger and the move timing are unit-tested, and the page
-wiring was run against simulated sensors and sticks. It has not yet been driven on a real car, so the Step mode
-numbers (car length, turn direction of the right stick, finish detection) are first guesses to calibrate.
+The table is saved in the browser; **Clear table** starts over. Tables saved before the wheel mapping changed are not
+loaded (their tallies were recorded under the old mapping), so teach a new one. The hub, Bluetooth, joystick and
+Save power code is shared with the main page (`Device.py`, `network/teleop_logic.py`, `misc_ui/power.py`). The table
+logic is `cloner/table_logic.py` (pure Python, tested in `tests/test_table_logic.py`) and the tab's wiring is
+`cloner/main.py` (loaded as `cloner_main`). It needs the real hardware and Chrome or Edge.
 
 ## Saving the color sensor's battery
 
@@ -239,12 +244,13 @@ glue/ network/ misc_ui/ plot.py   UI, network model, training, teaching features
 JS/ble.js                         Web Bluetooth wrapper (connect with retries)
 pyscript.toml                     Packages and file map
 trainer.html                      Redirect to the Training tab (old links keep working)
-cloner.html, cloner.toml, cloner/ The Table Cloner page: its own main.py, table_logic.py and small state/sync stand-ins
+cloner.html                       Redirect to the Table Cloner tab (old links keep working)
+cloner/                           The Table Cloner tab: main.py (loaded as cloner_main), table_logic.py, cloner.css
 tests/                            Unit tests for the pure-logic modules
 ```
 
 The pure-logic modules (`network/teleop_logic.py`, `link_logic.py`,
-`power_logic.py`) have no page code in them, so their tests run with plain Python from
+`power_logic.py`, `mode_logic.py`, `cloner/table_logic.py`) have no page code in them, so their tests run with plain Python from
 this folder: `python3 -m unittest discover tests -v`.
 
 Notes:

@@ -105,7 +105,45 @@ def refresh_all_neuron_delete_visibility():
     for layer in state.layers:
         update_neuron_delete_visibility(layer)
 
+def _cloner_options(devs, selected):
+    html = '<option value="">- none -</option>'
+    for d in devs:
+        mark = " selected" if d.name == selected else ""
+        html += f'<option value="{d.name}"{mark}>{d.name}</option>'
+    return html
+
+def refresh_cloner_dropdowns():
+    """The Table Cloner tab's three sensor dropdowns and its motor dropdown. Sensors that have not
+    been assigned yet are filled in the order they were connected (first = Left, second = Front,
+    third = Right); the motor defaults to the first Double Motor."""
+    sensors = [d for d in state.devices if "Color Sensor" in (d.name or "")]
+    motors = [d for d in state.devices if "Double Motor" in (d.name or "")]
+    names = {d.name for d in state.devices}
+    chosen = {}
+    for sel_id in state.CLONER_SENSOR_SELECTS:
+        sel = state.get_id(sel_id)
+        cur = sel.value if sel else ""
+        chosen[sel_id] = cur if cur in names else ""
+    used = {v for v in chosen.values() if v}
+    for sel_id in state.CLONER_SENSOR_SELECTS:          # fill empty slots in connection order
+        if chosen[sel_id] == "":
+            free = next((d for d in sensors if d.name not in used), None)
+            if free:
+                chosen[sel_id] = free.name
+                used.add(free.name)
+    for sel_id in state.CLONER_SENSOR_SELECTS:
+        sel = state.get_id(sel_id)
+        if sel:
+            sel.innerHTML = _cloner_options(sensors, chosen[sel_id])
+            sel.value = chosen[sel_id]
+    sel = state.get_id(state.CLONER_MOTOR_SELECT)
+    if sel:
+        cur = sel.value if sel.value in names else (motors[0].name if motors else "")
+        sel.innerHTML = _cloner_options(motors, cur)
+        sel.value = cur
+
 def refresh_device_dropdowns():
+    refresh_cloner_dropdowns()
     dev_opts = Device.get_device_options_html()
     for inp in state.inputs:
         sel = state.get_id(f"dev-in-{inp['id']}")

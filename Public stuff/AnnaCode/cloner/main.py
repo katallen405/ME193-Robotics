@@ -1,10 +1,10 @@
 """
-AnnaCode Table Cloner - main.py  (PyScript)
+AnnaCode Table Cloner tab - cloner/main.py  (PyScript; loaded as `cloner_main`, see pyscript.toml)
 
 Behavior cloning with a lookup table, for a car made of a Double Motor and three
-Color Sensors (left, front, right).
+Color Sensors (left, front, right). It is the "Table Cloner" tab of the main page.
 
-  1. Connect the hubs (each is its own Bluetooth device) and a Controller.
+  1. Connect the hubs (each is its own Bluetooth device) and a Controller in the Devices card.
   2. Press Record and drive with the joysticks. Each tenth of a second the page notes
      which sensors see an object (one of 8 patterns) and what you did (Forward, Left,
      Right, Back) and adds a tally to the table.
@@ -13,26 +13,38 @@ Color Sensors (left, front, right).
      too (the DAgger idea), so the table improves where the car actually goes wrong.
 
 All the decisions are in table_logic.py (pure, unit-tested). This file is the wiring.
+
+How it lives inside the main page:
+  * main.py calls start() once at boot, activate() when the tab is opened and deactivate() when it
+    is left. The 0.1 s tick does nothing unless the tab is open, so it never drives the motors at
+    the same time as the controller loop, Run or Record on the other tabs.
+  * The Devices card, Save power and Reverse are the main page's, shared with every tab. Reverse is
+    the checkbox with id teleop-reverse and means the same here as there (teleop_logic).
+  * Record/Run state is state.cloner_mode, not state.is_running / is_recording (the plots and the
+    controller loop read those); misc_ui/power.py knows about it.
+  * Every element id in the panel starts with cl-.
 """
 import asyncio
 import json
 import time
 
 import legoeducation as le
-from pyscript import document, when, window
+from pyscript import when, window
 
 import state
 from state import get_id
 import Device
-import sync
 import power
 import table_logic as tl
 import teleop_logic as tele
 
 TICK_S = 0.1          # one table sample / one motor update
 RESEND_TICKS = 5      # repeat an unchanged motor command every 0.5 s in case a write was dropped
-STORAGE_KEY = "annacode-table-cloner"
+# v2: the wheel mapping changed when Reverse became the main page's, so tables saved under the old
+# key would mean something different. The old key is left in the browser, unused.
+STORAGE_KEY = "annacode-table-cloner-v2"
 
+active = False                # True while the Table Cloner tab is open
 table = tl.BehaviorTable()
 mode = "idle"                 # "idle" | "record" | "run"
 sent = None                   # (left, right, ticks since sent) last motor command
@@ -75,21 +87,21 @@ def settings() -> dict:
         el = get_id(elem_id)
         return bool(el.checked) if el else default
 
-    bright = get_id("object-is")
+    bright = get_id("cl-object-is")
     return {
-        "threshold": number("threshold", tl.DEFAULT_THRESHOLD),
+        "threshold": number("cl-threshold", tl.DEFAULT_THRESHOLD),
         "bright": (bright.value if bright else "bright") == "bright",
-        "speed": number("speed", tl.DEFAULT_SPEED),
-        "reverse": checked("reverse"),
-        "correct": checked("add-corrections", True),
-        "step": checked("step-mode"),
-        "car_length": number("car-length", tl.DEFAULT_CAR_LENGTH_DEG),
+        "speed": number("cl-speed", tl.DEFAULT_SPEED),
+        "reverse": checked("teleop-reverse"),          # the shared Reverse box in the Devices card
+        "correct": checked("cl-add-corrections", True),
+        "step": checked("cl-step-mode"),
+        "car_length": number("cl-car-length", tl.DEFAULT_CAR_LENGTH_DEG),
     }
 
 def read_sensors() -> list:
     """Reflection from the Left, Front and Right sensors (None if unassigned or the link dropped)."""
     out = []
-    for sel_id in sync.SENSOR_SELECTS:
+    for sel_id in state.CLONER_SENSOR_SELECTS:
         sel = get_id(sel_id)
         dev = Device.device_by_name(sel.value) if sel and sel.value else None
         if dev is None or Device.link_dropped(dev):
@@ -112,7 +124,7 @@ def read_sticks() -> tuple[float, float]:
     return tele.stick_values(ctrl.state)
 
 def motor_device():
-    sel = get_id(sync.MOTOR_SELECT)
+    sel = get_id(state.CLONER_MOTOR_SELECT)
     return Device.device_by_name(sel.value) if sel and sel.value else None
 
 
@@ -142,14 +154,18 @@ def halt():
             print("Could not stop the motors: " + str(e))
 
 def human_commands(sl, sr, s):
-    return (tele.command_for("LeftSpeed", sl, sr, s["speed"], s["reverse"]),
-            tele.command_for("RightSpeed", sl, sr, s["speed"], s["reverse"]))
+    """What the sticks send to the wheels, with the shared Reverse box applied (teleop_logic)."""
+    reverse, swap_sides = tele.chassis_for_reverse_box(s["reverse"])
+    return (tele.command_for("LeftSpeed", sl, sr, s["speed"], reverse, swap_sides=swap_sides),
+            tele.command_for("RightSpeed", sl, sr, s["speed"], reverse, swap_sides=swap_sides))
 
 
 # ── One tick ─────────────────────────────────────────────────────────────────
 
 def tick():
     global table_version, last_pattern
+    if not active:                    # only the open tab reads sensors and drives motors
+        return
     s = settings()
     readings = read_sensors()
     bits = [tl.detect(r, s["threshold"], s["bright"]) for r in readings]
@@ -189,7 +205,7 @@ def tick():
 
     render_live(readings, bits, pattern, s, human, predicted, source, driver)
     if step_move is not None:
-        set_text("live-human", step_move["action"] + " (moving)")
+        set_text("cl-live-human", step_move["action"] + " (moving)")
     render_table(pattern)
 
 
@@ -253,20 +269,23 @@ def set_text(elem_id, text):
     if el:
         el.textContent = text
 
+SAVE_POWER_HINT = ("Save power is on, so the sensor lights are off and the readings are blank until you press "
+                   "Record or Run. Untick it in the Devices card to see live readings (to set the threshold, say).")
+
 def render_live(readings, bits, pattern, s, human, predicted, source, driver):
     for key, reading, on in zip(("left", "front", "right"), readings, bits):
-        set_text(f"read-{key}", "-" if reading is None else str(int(reading)))
-        el = get_id(f"sense-{key}")
+        set_text(f"cl-read-{key}", "-" if reading is None else str(int(reading)))
+        el = get_id(f"cl-sense-{key}")
         if el:
             el.classList.toggle("on", on)
             el.classList.toggle("missing", reading is None)
-    set_text("live-pattern", tl.pattern_name(pattern))
-    set_text("live-human", human or "not driving")
+    set_text("cl-live-pattern", tl.pattern_name(pattern))
+    set_text("cl-live-human", human or "not driving")
     if source == "none":
-        set_text("live-table", "Stop (table is empty)")
+        set_text("cl-live-table", "Stop (table is empty)")
     else:
-        set_text("live-table", predicted + (" (borrowed from a similar pattern)" if source == "nearest" else ""))
-    set_text("live-total", f"{table.total()} examples")
+        set_text("cl-live-table", predicted + (" (borrowed from a similar pattern)" if source == "nearest" else ""))
+    set_text("cl-live-total", f"{table.total()} examples")
 
     problems = []
     if all(r is None for r in readings):
@@ -275,11 +294,13 @@ def render_live(readings, bits, pattern, s, human, predicted, source, driver):
         problems.append("No Double Motor selected.")
     if find_controller() is None:
         problems.append("No controller connected, so there is nothing to learn from.")
-    set_text("setup-note", " ".join(problems))
+    set_text("cl-setup-note", " ".join(problems))
+    save_power = get_id("save-power")
+    set_text("cl-save-power-hint", SAVE_POWER_HINT if save_power and save_power.checked and mode == "idle" else "")
 
 def render_table(pattern):
     global drawn_version
-    body = get_id("table-body")
+    body = get_id("cl-table-body")
     if body is None:
         return
     if drawn_version != table_version:
@@ -300,13 +321,13 @@ def render_table(pattern):
             learned = (f'<span class="chip a-{best}">{best}</span>'
                        f'<span class="conf">{round(100 * table.confidence(p))}%</span>'
                        if best else '<span class="none">no examples</span>')
-            rows += (f'<tr id="row-{p}"><td class="pat"><span class="dots">{cells}</span>'
+            rows += (f'<tr id="cl-row-{p}"><td class="pat"><span class="dots">{cells}</span>'
                      f'<span class="pname">{tl.pattern_name(p)}</span></td>{bars}'
                      f'<td class="learned">{learned}</td></tr>')
         body.innerHTML = rows
         save_table()
     for p in range(tl.N_PATTERNS):
-        row = get_id(f"row-{p}")
+        row = get_id(f"cl-row-{p}")
         if row:
             row.classList.toggle("current", p == pattern)
 
@@ -316,25 +337,22 @@ def render_table(pattern):
 def set_mode(new_mode: str):
     global mode, sent, step_move
     mode = new_mode
-    state.is_running = (mode == "run")                 # what power.py (Save power) watches
-    state.is_recording = (mode == "record")
+    state.cloner_mode = mode                           # what power.py (Save power) watches
     sent = None
     step_move = None
     step_trigger.reset()
     halt()
     asyncio.ensure_future(power.reconcile())           # sensor lights follow the mode
     for name in ("record", "run"):
-        btn = get_id(f"{name}-btn")
+        btn = get_id(f"cl-{name}-btn")
         if btn:
-            active = (mode == name)
-            btn.classList.toggle("active", active)
-            btn.textContent = {"record": "Stop recording" if active else "Record",
-                               "run": "Stop" if active else "Run table"}[name]
-    set_text("mode-label", {"idle": "Idle: you can drive, nothing is learned",
-                            "record": "Recording: drive the car and the table learns",
-                            "run": "Running: the table drives. Push a stick to take over"}[mode])
-    document.body.classList.toggle("running", mode == "run")
-    document.body.classList.toggle("recording", mode == "record")
+            on = (mode == name)
+            btn.classList.toggle("active", on)
+            btn.textContent = {"record": "Stop recording" if on else "Record",
+                               "run": "Stop" if on else "Run table"}[name]
+    set_text("cl-mode-label", {"idle": "Idle: you can drive, nothing is learned",
+                               "record": "Recording: drive the car and the table learns",
+                               "run": "Running: the table drives. Push a stick to take over"}[mode])
 
 async def switch_mode(target: str):
     """Stop (back to idle), or start Record/Run. Starting waits until the sensors are really
@@ -345,25 +363,19 @@ async def switch_mode(target: str):
         return
     if mode != "idle":
         set_mode("idle")
-    # Pretend the mode is already on so power.py wakes the sensors, wait for them, then start.
-    state.is_running = (target == "run")
-    state.is_recording = (target == "record")
+    state.cloner_mode = target             # so power.py wakes the sensors, then wait for them, then start
     await power.ensure_ready()
     set_mode(target)
 
-@when("click", "#record-btn")
+@when("click", "#cl-record-btn")
 async def on_record(evt):
     await switch_mode("record")
 
-@when("click", "#run-btn")
+@when("click", "#cl-run-btn")
 async def on_run(evt):
     await switch_mode("run")
 
-@when("change", "#save-power")
-def on_save_power(evt):
-    asyncio.ensure_future(power.reconcile())
-
-@when("click", "#clear-btn")
+@when("click", "#cl-clear-btn")
 def on_clear(evt):
     global table_version
     if table.total() and not window.confirm("Forget everything the table has learned?"):
@@ -371,24 +383,13 @@ def on_clear(evt):
     table.clear()
     table_version += 1
 
-@when("click", "#add-device-btn")
-async def on_add_device(evt):
-    await Device.create_new_device()
-
-@when("click", "#close-ble-warning-btn")
-def on_close_warning(evt):
-    get_id("ble-warning-banner").classList.add("hidden")
-
-@when("change", ".device-pick")
+@when("change", ".cl-device-pick")
 def on_pick(evt):
-    sent_reset()
-
-def sent_reset():
     global sent
     sent = None
 
 
-# ── Boot ─────────────────────────────────────────────────────────────────────
+# ── Tab lifecycle (called from main.py) ──────────────────────────────────────
 
 async def main_loop():
     while True:
@@ -398,15 +399,22 @@ async def main_loop():
             print("tick failed: " + str(e))
         await asyncio.sleep(TICK_S)
 
-def boot():
-    get_id("loading-splash").style.display = "none"
-    get_id("page-wrap").style.display = "flex"
-    if not hasattr(window.navigator, "bluetooth"):
-        get_id("ble-warning-banner").classList.remove("hidden")
+def start():
+    """Once, at page boot: load the saved table and start the (idle until activated) tick."""
     load_table()
     set_mode("idle")
-    sync.refresh_device_dropdowns()
-    power.start()
     asyncio.ensure_future(main_loop())
 
-boot()
+def activate():
+    """The Table Cloner tab was opened."""
+    global active, drawn_version
+    import sync
+    active = True
+    drawn_version = -1                # draw the table afresh
+    sync.refresh_cloner_dropdowns()
+
+def deactivate():
+    """Another tab was opened: stop recording/running and the motors."""
+    global active
+    active = False
+    set_mode("idle")

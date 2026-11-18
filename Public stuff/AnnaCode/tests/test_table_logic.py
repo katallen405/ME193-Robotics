@@ -57,25 +57,36 @@ class Classify(unittest.TestCase):
 
 
 class Motors(unittest.TestCase):
-    def test_forward_mirrors_right_motor(self):
-        self.assertEqual(tl.motor_commands("Forward", 40), (40, -40))
+    """The main page's measured mapping (see teleop_logic.chassis_for_reverse_box): with Reverse
+    unticked, Forward drives away from the Double Motor's light and a left turn is counter-clockwise."""
 
-    def test_spin(self):
-        self.assertEqual(tl.motor_commands("Left", 40), (-40, -40))
-        self.assertEqual(tl.motor_commands("Right", 40), (40, 40))
+    def test_unticked_matches_the_car(self):
+        self.assertEqual(tl.motor_commands("Forward", 40), (-40, 40))
+        self.assertEqual(tl.motor_commands("Back", 40), (40, -40))
+        self.assertEqual(tl.motor_commands("Left", 40), (40, 40))     # counter-clockwise
+        self.assertEqual(tl.motor_commands("Right", 40), (-40, -40))  # clockwise
+
+    def test_ticked_swaps_forward_and_back_but_not_the_turns(self):
+        self.assertEqual(tl.motor_commands("Forward", 40, reverse=True), (40, -40))
+        self.assertEqual(tl.motor_commands("Back", 40, reverse=True), (-40, 40))
+        self.assertEqual(tl.motor_commands("Left", 40, reverse=True), (40, 40))
+        self.assertEqual(tl.motor_commands("Right", 40, reverse=True), (-40, -40))
 
     def test_stop_and_unknown(self):
         self.assertEqual(tl.motor_commands("Stop", 40), (0, 0))
         self.assertEqual(tl.motor_commands("nonsense", 40), (0, 0))
 
-    def test_reverse_and_clamp(self):
-        self.assertEqual(tl.motor_commands("Forward", 40, reverse=True), (-40, 40))
-        self.assertEqual(tl.motor_commands("Forward", 500), (100, -100))
+    def test_clamp(self):
+        self.assertEqual(tl.motor_commands("Forward", 500), (-100, 100))
 
-    def test_agrees_with_teleop_logic(self):
-        self.assertEqual(tl.motor_commands("Forward", 50),
-                         (tele.command_for("LeftSpeed", 100, 100, 50),
-                          tele.command_for("RightSpeed", 100, 100, 50)))
+    def test_agrees_with_what_the_sticks_do(self):
+        sticks = {"Forward": (100, 100), "Back": (-100, -100), "Left": (-100, 100), "Right": (100, -100)}
+        for reverse in (False, True):
+            rev, swap = tele.chassis_for_reverse_box(reverse)
+            for action, (l, r) in sticks.items():
+                self.assertEqual(tl.motor_commands(action, 50, reverse),
+                                 (tele.command_for("LeftSpeed", l, r, 50, rev, swap_sides=swap),
+                                  tele.command_for("RightSpeed", l, r, 50, rev, swap_sides=swap)))
 
 
 class Table(unittest.TestCase):
@@ -126,8 +137,9 @@ class Table(unittest.TestCase):
 
 class StepPlan(unittest.TestCase):
     def test_moves_and_turns(self):
-        self.assertEqual(tl.step_plan("Forward", 400), ("move", "forward", 400))
-        self.assertEqual(tl.step_plan("Back", 400), ("move", "back", 400))
+        # Reverse unticked: the car's Forward is away from the light = the hub's "back"
+        self.assertEqual(tl.step_plan("Forward", 400), ("move", "back", 400))
+        self.assertEqual(tl.step_plan("Back", 400), ("move", "forward", 400))
         self.assertEqual(tl.step_plan("Left"), ("turn", "left", 90))
         self.assertEqual(tl.step_plan("Right"), ("turn", "right", 90))
 
@@ -136,9 +148,20 @@ class StepPlan(unittest.TestCase):
         self.assertIsNone(tl.step_plan("nonsense"))
 
     def test_reverse_swaps_only_the_moves(self):
-        self.assertEqual(tl.step_plan("Forward", 400, reverse=True), ("move", "back", 400))
-        self.assertEqual(tl.step_plan("Back", 400, reverse=True), ("move", "forward", 400))
+        self.assertEqual(tl.step_plan("Forward", 400, reverse=True), ("move", "forward", 400))
+        self.assertEqual(tl.step_plan("Back", 400, reverse=True), ("move", "back", 400))
         self.assertEqual(tl.step_plan("Left", reverse=True), ("turn", "left", 90))
+        self.assertEqual(tl.step_plan("Right", reverse=True), ("turn", "right", 90))
+
+    def test_step_and_continuous_agree_on_which_way_forward_is(self):
+        # The hub's "forward" is the wheel pair (Left +, Right -): whichever way a Forward step goes,
+        # the continuous Forward must turn the wheels the same way.
+        for reverse in (False, True):
+            _, direction, _ = tl.step_plan("Forward", 360, reverse)
+            left, right = tl.motor_commands("Forward", 40, reverse)
+            self.assertEqual(direction == "forward", left > 0 and right < 0)
+            _, back_direction, _ = tl.step_plan("Back", 360, reverse)
+            self.assertNotEqual(direction, back_direction)
 
     def test_bad_car_length_falls_back(self):
         self.assertEqual(tl.step_plan("Forward", None)[2], tl.DEFAULT_CAR_LENGTH_DEG)

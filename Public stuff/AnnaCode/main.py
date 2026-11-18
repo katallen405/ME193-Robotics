@@ -38,6 +38,8 @@ import presets
 import training
 import teleop
 import power
+import mode_logic
+import cloner_main
 import asyncio
 
 # ── Static wiring ──────────────────────────────────────────────────────────────
@@ -160,6 +162,7 @@ def set_mode(mode: str):
     wrap.classList.toggle("beginner", state.beginner_mode)
     wrap.classList.toggle("training", state.in_training_family())
     wrap.classList.toggle("fitting", mode == "fitting")
+    wrap.classList.toggle("cloner", mode == "cloner")
     wrap.classList.toggle("show-act", show_act)
     update_activation_toggle()
     if mode != "training" and state.teleop_armed:      # the controller bar only exists in Training
@@ -167,8 +170,15 @@ def set_mode(mode: str):
         if box:
             box.checked = False
         teleop.disarm()
-    for m in ("beginner", "advanced", "fitting", "training"):
+    for m in mode_logic.MODES:
         state.get_id(f"mode-{m}-btn").classList.toggle("active", m == mode)
+    if previous == "cloner" and mode != "cloner":
+        cloner_main.deactivate()               # stop the Cloner recording/running and its motors
+    if mode == "cloner" and previous != "cloner":
+        if state.is_running:                   # the car can only be driven from one place at a time
+            network_actions.stop_network()
+        training.stop_recording()
+        cloner_main.activate()
     if previous != mode and "fitting" in (previous, mode):
         training.clear_data()                  # example curves don't carry over to or from recorded data
         state.undo_stack.clear()
@@ -212,6 +222,10 @@ def _on_mode_fitting(evt):
 @when("click", "#mode-training-btn")
 def _on_mode_training(evt):
     set_mode("training")
+
+@when("click", "#mode-cloner-btn")
+def _on_mode_cloner(evt):
+    set_mode("cloner")
 
 @when("click", "#record-btn")
 def _on_record(evt):
@@ -289,8 +303,9 @@ def boot():
     presets.populate_select(state.get_id("preset-select"))
     training.populate_examples(state.get_id("example-select"))
     help_system.setup()
-    wanted = str(window.location.search) + str(window.location.hash)      # trainer.html sends people to ?mode=training
-    set_mode("training" if "mode=training" in wanted or "#training" in wanted else state.mode)
+    cloner_main.start()
+    wanted = str(window.location.search) + str(window.location.hash)      # trainer.html / cloner.html send people to ?mode=...
+    set_mode(mode_logic.requested_mode(wanted, state.mode))
     power.start()
     asyncio.ensure_future(transfer_plot.run_loop())
     zoom.apply_zoom()

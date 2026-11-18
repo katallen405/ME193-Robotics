@@ -24,11 +24,17 @@ is_running       = False
 all_plots: dict[str, object] = {}
 
 debug_mode = True
-mode = "beginner"      # "beginner" | "advanced" | "fitting" | "training"
+mode = "beginner"      # "beginner" | "advanced" | "fitting" | "training" | "cloner" (see network/mode_logic.py)
 beginner_mode = True    # True (Beginner and Training) uses the simplified layout
 use_activations = False       # Beginner ignores activations; Advanced and Training apply them
 show_activation_blocks = False   # whether the activation columns are on screen (Advanced always; Training via its toggle)
 show_activation = False       # Training mode's "+ Activation layers" toggle
+
+# Table Cloner tab (cloner/main.py): its own Record / Run state, kept apart from is_running / is_recording
+# (the network's and Training's), which the plots and the controller loop read.
+cloner_mode = "idle"    # "idle" | "record" | "run"
+CLONER_SENSOR_SELECTS = ("cl-sensor-left", "cl-sensor-front", "cl-sensor-right")   # Left, Front, Right
+CLONER_MOTOR_SELECT = "cl-motor"
 
 def in_training_family() -> bool:
     """Fitting and Training share the brown data section and the simplified network layout."""

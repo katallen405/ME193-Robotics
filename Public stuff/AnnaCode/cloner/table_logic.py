@@ -8,15 +8,20 @@ turned into "object here / not here", so the world is one of 8 patterns. While a
 human drives with the joystick, every (pattern, what the human did) pair is
 counted in a table. To drive itself the robot looks up its current pattern and
 does the action with the highest count.
-"""
 
-# What the human can teach. Each is a (left wheel, right wheel) pair, forward positive.
+Which way the wheels turn for each action is decided by teleop_logic (the same mapping, and the
+same Reverse checkbox, as driving with the joystick on the other tabs), so that what the table
+plays back is exactly what the sticks would have done.
+"""
+import teleop_logic as tele
+
+# What the human can teach, and the (left stick, right stick) push that gives each one (full push).
 ACTIONS = ("Forward", "Left", "Right", "Back", "Stop")
-_WHEELS = {
-    "Forward": (1, 1),
-    "Back": (-1, -1),
-    "Left": (-1, 1),    # spin left: right wheel forward, left wheel back
-    "Right": (1, -1),
+_STICKS = {
+    "Forward": (100, 100),
+    "Back": (-100, -100),
+    "Left": (-100, 100),    # left stick back, right stick forward: spin left (counter-clockwise)
+    "Right": (100, -100),
     "Stop": (0, 0),
 }
 
@@ -78,14 +83,13 @@ def classify_action(left_stick, right_stick, deadband: float = STICK_DEADBAND):
 
 
 def motor_commands(action: str, speed: float = DEFAULT_SPEED, reverse: bool = False) -> tuple[int, int]:
-    """(LeftSpeed, RightSpeed) to send to a Double Motor. The right motor is mirrored,
-    the same convention as teleop_logic.command_for."""
-    lw, rw = _WHEELS.get(action, (0, 0))
-    s = max(0.0, min(100.0, _num(speed) or 0.0))
-    left, right = lw * s, -rw * s
-    if reverse:
-        left, right = -left, -right
-    return int(round(left)) + 0, int(round(right)) + 0   # + 0 turns -0 into 0
+    """(LeftSpeed, RightSpeed) to send to a Double Motor for one action: what the joystick would
+    send for that push (teleop_logic.command_for with the main page's Reverse mapping, see
+    teleop_logic.chassis_for_reverse_box)."""
+    left_stick, right_stick = _STICKS.get(action, (0, 0))
+    rev, swap = tele.chassis_for_reverse_box(reverse)
+    return (tele.command_for("LeftSpeed", left_stick, right_stick, speed, rev, swap_sides=swap),
+            tele.command_for("RightSpeed", left_stick, right_stick, speed, rev, swap_sides=swap))
 
 
 # ── Step mode: the joystick gives whole moves ────────────────────────────────
@@ -106,14 +110,18 @@ MOVE_STILL_SPEED = 3.0    # wheel speed below this counts as still
 
 def step_plan(action: str, car_length_deg: float = DEFAULT_CAR_LENGTH_DEG, reverse: bool = False):
     """What to ask the Double Motor for one action: ("move", "forward"|"back", wheel degrees),
-    ("turn", "left"|"right", 90), or None for Stop and anything unknown. reverse swaps forward and
-    back for a car whose motors are mounted the other way; turns are confirmed by the hub's own
-    sensor so they are left alone."""
+    ("turn", "left"|"right", 90), or None for Stop and anything unknown.
+
+    "forward" and "back" are the hub's own directions (its movement FORWARD drives toward the
+    light). With Reverse unticked the car's Forward is away from the light, so Forward is the hub's
+    "back"; ticked, it is the hub's "forward". That agrees with motor_commands. Turns are confirmed
+    by the hub's own rotation sensor and never depend on which end is the front, so Reverse leaves
+    them alone."""
     deg = int(round(max(1.0, _num(car_length_deg) or DEFAULT_CAR_LENGTH_DEG)))
     if action == "Forward":
-        return ("move", "back" if reverse else "forward", deg)
-    if action == "Back":
         return ("move", "forward" if reverse else "back", deg)
+    if action == "Back":
+        return ("move", "back" if reverse else "forward", deg)
     if action == "Left":
         return ("turn", "left", TURN_DEGREES)
     if action == "Right":

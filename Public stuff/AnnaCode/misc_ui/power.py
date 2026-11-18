@@ -34,14 +34,19 @@ def enabled() -> bool:
 
 
 def needed() -> bool:
-    """Is data being recorded, or the network running?"""
-    return bool(state.is_running or state.is_recording)
+    """Is data being recorded, or the network running (or the Table Cloner recording or running)?"""
+    return bool(state.is_running or state.is_recording or state.cloner_mode in ("record", "run"))
 
 
 def _input_device_names() -> set:
+    """Sensors something reads: the Input nodes' devices, plus the Table Cloner's three sensors
+    while its tab is open (on the other tabs they are not being read)."""
+    ids = [f"dev-in-{inp['id']}" for inp in state.inputs]
+    if state.mode == "cloner":
+        ids += list(state.CLONER_SENSOR_SELECTS)
     names = set()
-    for inp in state.inputs:
-        el = get_id(f"dev-in-{inp['id']}")
+    for elem_id in ids:
+        el = get_id(elem_id)
         if el and el.value:
             names.add(el.value)
     return names
